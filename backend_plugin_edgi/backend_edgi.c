@@ -28,12 +28,20 @@
 
 #if defined(__GNUC__)
 #define BACKEND_EDGI_ALIGN(n) __attribute__((aligned(n)))
+#define BACKEND_EDGI_SECTION(name) __attribute__((section(name)))
 #else
 #define BACKEND_EDGI_ALIGN(n)
+#define BACKEND_EDGI_SECTION(name)
 #endif
 
-static uint8_t g_backend_edgi_input[BACKEND_EDGI_INPUT_SIZE] BACKEND_EDGI_ALIGN(16);
-static float g_backend_edgi_output[BACKEND_EDGI_OUTPUT_SIZE] BACKEND_EDGI_ALIGN(16);
+#define BACKEND_EDGI_INPUT_SECTION       BACKEND_EDGI_SECTION(".cy_ml_arena_data")
+#define BACKEND_EDGI_OUTPUT_SECTION      BACKEND_EDGI_SECTION(".cy_ml_postproc_data")
+
+static BACKEND_EDGI_INPUT_SECTION BACKEND_EDGI_ALIGN(16)
+uint8_t g_backend_edgi_input[BACKEND_EDGI_INPUT_SIZE];
+
+static BACKEND_EDGI_OUTPUT_SECTION BACKEND_EDGI_ALIGN(16)
+float g_backend_edgi_output[BACKEND_EDGI_OUTPUT_SIZE];
 
 static int g_backend_edgi_initialized = 0;
 static int g_backend_edgi_last_error = BACKEND_EDGI_OK;
