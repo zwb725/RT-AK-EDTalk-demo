@@ -51,11 +51,13 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     source_backend_dir = repo_root / "backend_plugin_edgi"
     source_generated_dir = repo_root / output_dir
     source_sconscript = repo_root / "Sconscripts" / "SConscript"
+    source_demo = repo_root / "examples" / "rt_ai_edgi_minimal_demo.c"
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
     _copy_dir(source_backend_dir, target_dir / "backend_plugin_edgi")
     _copy_dir(source_generated_dir, target_dir / "generated")
     _copy_file(source_sconscript, target_dir / "SConscript")
+    _copy_file(source_demo, target_dir / "rt_ai_edgi_minimal_demo.c")
 
     return target_dir

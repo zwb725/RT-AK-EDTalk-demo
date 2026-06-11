@@ -75,7 +75,7 @@ int backend_edgi_run(const void *input, void *output)
 {
     const uint8_t *runtime_input;
     float *runtime_output;
-    int ret;
+    
 
     if (!g_backend_edgi_initialized)
     {
