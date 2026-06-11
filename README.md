@@ -1,4 +1,3 @@
-@'
 # RT-AK-EDTalk-demo
 
 本仓库用于验证 Edgi Talk / PSoC Edge E84 / Cortex-M55 / Ethos-U55 / DeepCraft / Imagimob 推理链路接入 RT-AK 的最小插件适配流程。
@@ -38,3 +37,7 @@ python plugin_edgi.py `
   --platform edgi `
   --ethosu `
   --dry_run
+
+
+
+完成 Edgi Talk / Cortex-M55 / Ethos-U55 / DeepCraft 推理链路的 RT-AK 插件最小适配 Demo：实现 plugin_edgi.py 参数解析、模型产物 dry-run 检查、rt_ai_<model>_model.c/h 生成、backend_edgi 对 IMAI_init / IMAI_compute / IMAI_finalize 的封装、SCons 导出到 BSP applications/rt_ai_edgi，并完成 BSP 编译链接生成 rtthread.hex。
