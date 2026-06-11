@@ -96,12 +96,7 @@ int backend_edgi_run(const void *input, void *output)
         runtime_output = g_backend_edgi_output;
     }
 
-    ret = IMAI_compute(runtime_input, runtime_output);
-    if (ret != 0)
-    {
-        g_backend_edgi_last_error = ret;
-        return ret;
-    }
+    IMAI_compute(runtime_input, runtime_output);
 
     g_backend_edgi_last_error = BACKEND_EDGI_OK;
     return BACKEND_EDGI_OK;

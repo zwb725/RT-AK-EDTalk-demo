@@ -6,6 +6,10 @@
 # 注意：
 # DeepCraft / Imagimob 的 model.c 已经由原 BSP 自己编译，
 # 本插件只引用 model.h，不重复编译 model.c。
+#
+# 注意：
+# RT_AI_USE_EDGI / RT_AI_USE_M55_ETHOSU / BSP_USING_DEEPCRAFT_AI
+# 应由 rtconfig.h / Kconfig 提供，这里不再通过 CPPDEFINES 重复定义。
 
 from building import *
 
@@ -26,18 +30,11 @@ CPPPATH = [
     deepcraft_model_dir,
 ]
 
-CPPDEFINES = [
-    'RT_AI_USE_EDGI',
-    'RT_AI_USE_M55_ETHOSU',
-    'BSP_USING_DEEPCRAFT_AI',
-]
-
 group = DefineGroup(
     'RT-AK-Edgi',
     src,
     depend=['RT_AI_USE_EDGI'],
-    CPPPATH=CPPPATH,
-    CPPDEFINES=CPPDEFINES
+    CPPPATH=CPPPATH
 )
 
 Return('group')
