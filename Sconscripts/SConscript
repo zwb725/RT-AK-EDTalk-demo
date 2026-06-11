@@ -1,0 +1,43 @@
+# RT-AK Plugin Edgi integration SConscript
+#
+# 当前文件用于将 Edgi RT-AK 最小 backend 和 generated model wrapper
+# 纳入 Edgi Talk BSP 的 SCons 构建。
+#
+# 注意：
+# DeepCraft / Imagimob 的 model.c 已经由原 BSP 自己编译，
+# 本插件只引用 model.h，不重复编译 model.c。
+
+from building import *
+
+cwd = GetCurrentDir()
+
+backend_dir = cwd + '/backend_plugin_edgi'
+generated_dir = cwd + '/generated/object_detect'
+deepcraft_model_dir = cwd + '/../../libraries/Common/deepcraft_ai/model'
+
+src = [
+    backend_dir + '/backend_edgi.c',
+    generated_dir + '/rt_ai_object_detect_model.c',
+]
+
+CPPPATH = [
+    backend_dir,
+    generated_dir,
+    deepcraft_model_dir,
+]
+
+CPPDEFINES = [
+    'RT_AI_USE_EDGI',
+    'RT_AI_USE_M55_ETHOSU',
+    'BSP_USING_DEEPCRAFT_AI',
+]
+
+group = DefineGroup(
+    'RT-AK-Edgi',
+    src,
+    depend=['RT_AI_USE_EDGI'],
+    CPPPATH=CPPPATH,
+    CPPDEFINES=CPPDEFINES
+)
+
+Return('group')
