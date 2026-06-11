@@ -36,4 +36,17 @@ def platform_parameters(parser):
         help="只检查工程和模型产物，不复制文件，不修改 BSP",
     )
 
+    parser.add_argument(
+        "--generate",
+        action="store_true",
+        help="检查通过后生成 rt_ai_<model>_model.c/h 草图，输出到 generated/ 目录",
+    )
+
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="generated",
+        help="生成文件输出目录，默认 generated",
+    )
+
     return parser
