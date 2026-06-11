@@ -4,13 +4,14 @@ RT-AK Edgi Talk 平台插件入口。
 
 当前支持：
 - --dry_run：只检查 BSP 和 DeepCraft / Imagimob 模型产物；
-- --generate：检查通过后生成 rt_ai_<model>_model.c/h 草图。
+- --generate：检查通过后生成 rt_ai_<model>_model.c/h 草图；
+- --export：将 backend / generated / SConscript 导出到 BSP applications/rt_ai_edgi/。
 
 当前不做：
-- 不修改原始 BSP 工程；
+- 不修改 BSP 根目录 SConscript；
+- 不修改 rtconfig.h；
 - 不复制 UVC / LCD demo；
-- 不注入 SConscript；
-- 不修改 rtconfig.h。
+- 不接入 MSH 命令。
 """
 
 import argparse
@@ -26,6 +27,7 @@ from prepare_work import (
 from generate_model_files import parse_model_metadata
 from generate_rt_ai_model_h import generate_rt_ai_model_h
 from gen_rt_ai_model_c import generate_rt_ai_model_c
+from export_to_project import export_to_project
 
 
 def build_parser():
@@ -126,6 +128,32 @@ def generate_model_wrapper(opt):
     return 0
 
 
+def export_generated_files(opt):
+    """导出插件产物到 BSP applications/rt_ai_edgi。"""
+    try:
+        target_dir = export_to_project(
+            project=opt.project,
+            output_dir=opt.output_dir,
+            export_dir=opt.export_dir,
+        )
+    except Exception as exc:
+        print(f"导出失败：{exc}")
+        return 1
+
+    print("=" * 70)
+    print("Edgi RT-AK files exported")
+    print("=" * 70)
+    print(f"target_dir : {target_dir}")
+    print("exported   : backend_plugin_edgi/")
+    print("exported   : generated/")
+    print("exported   : SConscript")
+    print("-" * 70)
+    print("注意：当前阶段未修改 BSP 根目录 SConscript / rtconfig.h / Kconfig。")
+    print("=" * 70)
+
+    return 0
+
+
 def main(argv=None):
     parser = build_parser()
     opt = parser.parse_args(argv)
@@ -137,16 +165,32 @@ def main(argv=None):
     if not opt.runtime:
         opt.runtime = DEFAULT_RUNTIME
 
+    ret = 0
+
     if opt.dry_run:
-        dry_ret = print_dry_run_report(opt)
-        if not opt.generate:
-            return dry_ret
+        ret = print_dry_run_report(opt)
+        if ret != 0:
+            return ret
 
     if opt.generate:
-        return generate_model_wrapper(opt)
+        ret = generate_model_wrapper(opt)
+        if ret != 0:
+            return ret
 
-    print("当前阶段请指定 --dry_run 或 --generate。")
-    return 1
+    if opt.export:
+        if not opt.generate:
+            print("错误：当前阶段 --export 需要和 --generate 一起使用。")
+            return 1
+
+        ret = export_generated_files(opt)
+        if ret != 0:
+            return ret
+
+    if not opt.dry_run and not opt.generate and not opt.export:
+        print("当前阶段请指定 --dry_run、--generate 或 --generate --export。")
+        return 1
+
+    return ret
 
 
 if __name__ == "__main__":

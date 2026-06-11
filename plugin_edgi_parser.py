@@ -49,4 +49,17 @@ def platform_parameters(parser):
         help="生成文件输出目录，默认 generated",
     )
 
+    parser.add_argument(
+        "--export",
+        action="store_true",
+        help="将 backend、generated 和 SConscript 导出到 BSP applications/rt_ai_edgi/，但不修改 BSP 构建入口",
+    )
+
+    parser.add_argument(
+        "--export_dir",
+        type=str,
+        default="",
+        help="导出目录。默认使用 <project>/applications/rt_ai_edgi",
+    )
+
     return parser
