@@ -1,0 +1,24 @@
+@"
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+.vscode/
+.idea/
+
+build/
+Debug/
+Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.a
+*.obj
+*.exe
+
+.DS_Store
+Thumbs.db
+"@ | Out-File -Encoding utf8 .gitignore
