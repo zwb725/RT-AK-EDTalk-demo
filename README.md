@@ -1,36 +1,40 @@
-@"
+@'
 # RT-AK-EDTalk-demo
 
-Experimental RT-AK plugin demo for PSoC Edge E84 / Cortex-M55 / Ethos-U55 / DeepCraft / Imagimob runtime.
+本仓库用于验证 Edgi Talk / PSoC Edge E84 / Cortex-M55 / Ethos-U55 / DeepCraft / Imagimob 推理链路接入 RT-AK 的最小插件适配流程。
 
-## Goal
+## 当前目标
 
-Build a minimal RT-AK platform plugin skeleton for Edgi Talk M55 DeepCraft AI deployment.
+先做最小 RT-AK 平台插件，不直接搬运完整 Edgi Talk BSP 工程。
 
-## Scope
+第一阶段只做：
 
-This repository only contains:
+- 插件目录骨架
+- Edgi 平台参数解析
+- BSP 路径检查
+- DeepCraft / Imagimob 模型产物检查
+- IMAI 关键符号检查
+- dry-run 报告输出
 
-- RT-AK tools plugin skeleton
-- RT-AK model file generation skeleton
-- Edgi backend wrapper skeleton
-- Ethos-U55 RTOS shim skeleton
-- minimal fixed-input demo placeholder
+## 当前不做
 
-This repository does not contain:
+本仓库当前不包含：
 
-- UVC camera capture
-- CherryUSB UVC demo logic
+- UVC 摄像头采集
+- CherryUSB UVC demo
 - LCD overlay
-- MSH command demo
-- application-specific postprocess
-- copied Edgi Talk BSP source files
+- MSH 命令
+- worker thread 调度
+- 业务后处理
+- Edgi Talk BSP 源码复制
 
-## First Target
+## 第一阶段运行方式
 
-Run a fixed input buffer through:
-
-rt_ai_find -> rt_ai_init -> rt_ai_run -> rt_ai_output
-
-and print the raw output tensor.
-"@ | Out-File -Encoding utf8 README.md
+```powershell
+python plugin_edgi.py `
+  --project "C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision" `
+  --model_name object_detect `
+  --deepcraft_dir "C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision\libraries\Common\deepcraft_ai" `
+  --platform edgi `
+  --ethosu `
+  --dry_run
