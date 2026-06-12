@@ -79,6 +79,13 @@ def _check_before_generate(opt):
 
 def generate_model_wrapper(opt):
     """生成 Edgi RT-AK 模型 wrapper 草图。"""
+    from pathlib import Path
+    
+    plugin_root = Path(__file__).resolve().parent
+
+    if not getattr(opt, "output_dir", None):
+    opt.output_dir = str(plugin_root / "generated")
+
     if not _check_before_generate(opt):
         print("生成失败：dry-run 检查未通过。")
         return 1
@@ -116,7 +123,7 @@ def generate_model_wrapper(opt):
     print(f"generated c : {c_path}")
     print("=" * 70)
     print(f"generated cfg: {cfg_path}")
-    
+
     return 0
 
 
