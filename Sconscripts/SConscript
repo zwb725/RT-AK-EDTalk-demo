@@ -16,7 +16,7 @@ src = [
 
 if GetDepend(['RT_AI_EDGI_MINIMAL_DEMO']):
     src += [
-        cwd + '/rt_ai_edgi_rtak_api_demo.c',
+        cwd + '/rt_ai_edgi_minimal_demo.c',
     ]
 
 CPPPATH = [
