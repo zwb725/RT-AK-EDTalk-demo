@@ -147,7 +147,11 @@ def export_generated_files(opt):
     print("exported   : backend_plugin_edgi/")
     print("exported   : generated/")
     print("exported   : SConscript")
+    print("exported : Kconfig")
     print("-" * 70)
+    print("注意：已导出 applications/rt_ai_edgi/Kconfig。")
+    print("注意：仍需在 BSP 根 Kconfig 中手动添加：")
+    print('source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"')
     print("注意：当前阶段未修改 BSP 根目录 SConscript / rtconfig.h / Kconfig。")
     print("=" * 70)
 
@@ -192,7 +196,6 @@ def main(argv=None):
 
     return ret
 
-print("exported : Kconfig")
 
 if __name__ == "__main__":
     sys.exit(main())
