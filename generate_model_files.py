@@ -14,12 +14,12 @@ Edgi RT-AK 模型文件生成入口。
 
 import argparse
 import re
-from pathlib import Path
-from functools import reduce
-from operator import mul
+from .pathlib import Path
+from .functools import reduce
+from .operator import mul
 
-from generate_rt_ai_model_h import generate_rt_ai_model_h
-from gen_rt_ai_model_c import generate_rt_ai_model_c
+from .generate_rt_ai_model_h import generate_rt_ai_model_h
+from .gen_rt_ai_model_c import generate_rt_ai_model_c
 
 
 def _extract_numbers(text: str):

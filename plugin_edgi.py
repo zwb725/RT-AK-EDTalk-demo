@@ -1,33 +1,19 @@
 ﻿# coding=utf-8
-"""
-RT-AK Edgi Talk 平台插件入口。
-
-当前支持：
-- --dry_run：只检查 BSP 和 DeepCraft / Imagimob 模型产物；
-- --generate：检查通过后生成 rt_ai_<model>_model.c/h 草图；
-- --export：将 backend / generated / SConscript 导出到 BSP applications/rt_ai_edgi/。
-
-当前不做：
-- 不修改 BSP 根目录 SConscript；
-- 不修改 rtconfig.h；
-- 不复制 UVC / LCD demo；
-- 不接入 MSH 命令。
-"""
 
 import argparse
 import sys
 
-from config import DEFAULT_MODEL_NAME, DEFAULT_RUNTIME
-from plugin_edgi_parser import platform_parameters
-from prepare_work import (
+from .config import DEFAULT_MODEL_NAME, DEFAULT_RUNTIME
+from .plugin_edgi_parser import platform_parameters
+from .prepare_work import (
     check_bsp_project,
     check_deepcraft_dir,
     print_dry_run_report,
 )
-from generate_model_files import parse_model_metadata
-from generate_rt_ai_model_h import generate_rt_ai_model_h
-from gen_rt_ai_model_c import generate_rt_ai_model_c
-from export_to_project import export_to_project
+from .generate_model_files import parse_model_metadata
+from .generate_rt_ai_model_h import generate_rt_ai_model_h
+from .gen_rt_ai_model_c import generate_rt_ai_model_c
+from .export_to_project import export_to_project
 
 
 def build_parser():
