@@ -1,17 +1,8 @@
-﻿# coding=utf-8
-"""
-Edgi Talk 插件准备与检查逻辑。
-
-当前版本只做 dry-run：
-- 检查 BSP 工程结构；
-- 检查 DeepCraft / Imagimob 模型产物；
-- 检查关键 IMAI 符号；
-- 打印检查报告。
-"""
+# coding=utf-8
 
 from pathlib import Path
 
-from config import (
+from .config import (
     REQUIRED_BSP_ITEMS,
     REQUIRED_DEEPCRAFT_FILES,
     REQUIRED_IMAI_SYMBOLS,
