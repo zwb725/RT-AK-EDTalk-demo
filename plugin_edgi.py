@@ -185,10 +185,47 @@ def main(argv=None):
 class Plugin:
     def __init__(self, opt):
         self.opt = opt
-        self.impl = EdgiPlugin(opt)
 
     def run_plugin(self):
-        return self.impl.run_plugin()
+        opt = self.opt
+
+        if getattr(opt, "platform", None) != "edgi":
+            print(f"错误：当前插件只支持 --platform edgi，当前输入为: {getattr(opt, 'platform', None)}")
+            return 1
+
+        if not getattr(opt, "runtime", None):
+            opt.runtime = DEFAULT_RUNTIME
+
+        ret = 0
+
+        if getattr(opt, "dry_run", False):
+            ret = print_dry_run_report(opt)
+            if ret != 0:
+                return ret
+
+        if getattr(opt, "generate", False):
+            ret = generate_model_wrapper(opt)
+            if ret != 0:
+                return ret
+
+        if getattr(opt, "export", False):
+            if not getattr(opt, "generate", False):
+                print("错误：当前阶段 --export 需要和 --generate 一起使用。")
+                return 1
+
+            ret = export_generated_files(opt)
+            if ret != 0:
+                return ret
+
+        if (
+            not getattr(opt, "dry_run", False)
+            and not getattr(opt, "generate", False)
+            and not getattr(opt, "export", False)
+        ):
+            print("当前阶段请指定 --dry_run、--generate 或 --generate --export。")
+            return 1
+
+        return ret
 
 if __name__ == "__main__":
     sys.exit(main())
