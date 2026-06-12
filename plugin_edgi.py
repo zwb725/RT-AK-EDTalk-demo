@@ -3,6 +3,8 @@
 import argparse
 import sys
 
+from pathlib import Path
+
 from .config import DEFAULT_MODEL_NAME, DEFAULT_RUNTIME
 from .plugin_edgi_parser import platform_parameters
 from .prepare_work import (
@@ -79,12 +81,11 @@ def _check_before_generate(opt):
 
 def generate_model_wrapper(opt):
     """生成 Edgi RT-AK 模型 wrapper 草图。"""
-    from pathlib import Path
     
     plugin_root = Path(__file__).resolve().parent
 
     if not getattr(opt, "output_dir", None):
-    opt.output_dir = str(plugin_root / "generated")
+        opt.output_dir = str(plugin_root / "generated")
 
     if not _check_before_generate(opt):
         print("生成失败：dry-run 检查未通过。")
