@@ -1,14 +1,6 @@
 #ifndef __BACKEND_EDGI_H__
 #define __BACKEND_EDGI_H__
 
-/*
- * RT-AK Plugin Edgi minimal backend interface.
- *
- * Current stage:
- * - wrap DeepCraft / Imagimob IMAI runtime
- * - expose input / output buffer
- * - keep UVC / LCD / postprocess outside backend
- */
 
 #include <stdint.h>
 #include <rtthread.h>
@@ -39,15 +31,6 @@ typedef struct backend_edgi_config
     void *user_data;
 } backend_edgi_config_t;
 
-int backend_edgi_init(const backend_edgi_config_t *config);
-int backend_edgi_run(const void *input, void *output);
-int backend_edgi_deinit(void);
-
-void *backend_edgi_get_input(uint32_t index);
-void *backend_edgi_get_output(uint32_t index);
-
-int backend_edgi_is_initialized(void);
-int backend_edgi_get_last_error(void);
 
 /* Low-level DeepCraft / Imagimob wrapper */
 int backend_edgi_init(const backend_edgi_config_t *config);

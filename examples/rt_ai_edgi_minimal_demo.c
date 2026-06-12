@@ -122,6 +122,7 @@ static int rt_ai_edgi_minimal_demo(int argc, char **argv)
     }
 
     rt_kprintf("rt_ai_output success: %p\r\n", output);
+
     rt_ai_edgi_print_output_as_hex(output, RT_AI_OBJECT_DETECT_OUTPUT_SIZE);
 
     rt_kprintf("RT-AK Edgi standard API demo end\r\n");
