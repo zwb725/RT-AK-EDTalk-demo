@@ -182,6 +182,13 @@ def main(argv=None):
 
     return ret
 
+class Plugin:
+    def __init__(self, opt):
+        self.opt = opt
+        self.impl = EdgiPlugin(opt)
+
+    def run_plugin(self):
+        return self.impl.run_plugin()
 
 if __name__ == "__main__":
     sys.exit(main())
