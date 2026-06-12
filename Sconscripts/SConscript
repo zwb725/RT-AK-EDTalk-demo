@@ -4,12 +4,13 @@ from building import *
 
 cwd = GetCurrentDir()
 
-backend_dir = cwd + '/backend_plugin_edgi'
+backend_dir = cwd + '/../../rt_ai_lib/backend_plugin_edgi'
 generated_dir = cwd + '/generated/object_detect'
+rt_ai_lib_dir = cwd + '/../../rt_ai_lib'
+rt_ai_include_dir = rt_ai_lib_dir + '/include'
 deepcraft_model_dir = cwd + '/../../libraries/Common/deepcraft_ai/model'
 
 src = [
-    backend_dir + '/backend_edgi.c',
     generated_dir + '/rt_ai_object_detect_model.c',
 ]
 
@@ -22,6 +23,8 @@ CPPPATH = [
     cwd,
     backend_dir,
     generated_dir,
+    rt_ai_lib_dir,
+    rt_ai_include_dir,
     deepcraft_model_dir,
 ]
 
