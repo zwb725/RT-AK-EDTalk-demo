@@ -1,16 +1,3 @@
-# coding=utf-8
-"""
-将 Edgi RT-AK 插件产物导出到 RT-Thread BSP 工程。
-
-当前阶段：
-- 复制 backend_plugin_edgi/
-- 复制 generated/
-- 复制 Sconscripts/SConscript 为目标目录 SConscript
-- 不修改 BSP 根目录 SConscript
-- 不修改 rtconfig.h
-- 不修改 Kconfig
-"""
-
 import shutil
 from pathlib import Path
 
@@ -52,12 +39,15 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     source_generated_dir = repo_root / output_dir
     source_sconscript = repo_root / "Sconscripts" / "SConscript"
     source_demo = repo_root / "examples" / "rt_ai_edgi_minimal_demo.c"
-
+    
+    source_kconfig = repo_root / "Kconfig"
+    
     target_dir.mkdir(parents=True, exist_ok=True)
 
     _copy_dir(source_backend_dir, target_dir / "backend_plugin_edgi")
     _copy_dir(source_generated_dir, target_dir / "generated")
     _copy_file(source_sconscript, target_dir / "SConscript")
     _copy_file(source_demo, target_dir / "rt_ai_edgi_minimal_demo.c")
+    _copy_file(source_kconfig, target_dir / "Kconfig")
 
     return target_dir

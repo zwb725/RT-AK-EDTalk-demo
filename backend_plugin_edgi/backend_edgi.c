@@ -57,6 +57,11 @@ int backend_edgi_init(const backend_edgi_config_t *config)
 {
     int ret;
 
+    if (g_backend_edgi_initialized)
+    {
+        return BACKEND_EDGI_OK;
+    }
+
     if (config != 0)
     {
         g_backend_edgi_config = *config;
@@ -66,7 +71,11 @@ int backend_edgi_init(const backend_edgi_config_t *config)
     memset(g_backend_edgi_output, 0, sizeof(g_backend_edgi_output));
 
     ret = IMAI_init();
+#ifdef IMAI_RET_SUCCESS
+    if (ret != IMAI_RET_SUCCESS)
+#else
     if (ret != 0)
+#endif
     {
         g_backend_edgi_initialized = 0;
         g_backend_edgi_last_error = ret;
@@ -103,6 +112,10 @@ int backend_edgi_run(const void *input, void *output)
     {
         runtime_output = g_backend_edgi_output;
     }
+
+    /*
+     * Current DeepCraft / Imagimob IMAI_compute returns void.
+     */
 
     IMAI_compute(runtime_input, runtime_output);
 
@@ -156,3 +169,134 @@ int backend_edgi_get_last_error(void)
 {
     return g_backend_edgi_last_error;
 }
+
+#ifdef RT_AI_USE_EDGI
+
+static int _edgi_backend_init(rt_ai_t ai, rt_ai_buffer_t *buf)
+{
+    int ret;
+
+    RT_UNUSED(buf);
+
+    if (ai == RT_AI_NULL)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    ret = backend_edgi_init(&EDGI_AI_T(ai)->config);
+    if (ret != BACKEND_EDGI_OK)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    ai->input[0] = (rt_ai_buffer_t *)backend_edgi_get_input(0);
+    ai->output[0] = (rt_ai_buffer_t *)backend_edgi_get_output(0);
+
+    if (ai->input[0] == RT_AI_NULL || ai->output[0] == RT_AI_NULL)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    return RT_AI_OK;
+}
+
+static int _edgi_backend_get_input(rt_ai_t ai, rt_ai_uint32_t index)
+{
+    if (ai == RT_AI_NULL || index >= ai->info.input_n)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    ai->input[index] = (rt_ai_buffer_t *)backend_edgi_get_input(index);
+
+    return ai->input[index] ? RT_AI_OK : -RT_AI_ERROR;
+}
+
+static int _edgi_backend_run(rt_ai_t ai, void (*callback)(void *arg), void *arg)
+{
+    int ret;
+
+    if (ai == RT_AI_NULL)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    if (ai->input[0] == RT_AI_NULL)
+    {
+        ai->input[0] = (rt_ai_buffer_t *)backend_edgi_get_input(0);
+    }
+
+    if (ai->output[0] == RT_AI_NULL)
+    {
+        ai->output[0] = (rt_ai_buffer_t *)backend_edgi_get_output(0);
+    }
+
+    ret = backend_edgi_run(ai->input[0], ai->output[0]);
+    if (ret != BACKEND_EDGI_OK)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    if (callback)
+    {
+        callback(arg);
+    }
+
+    return RT_AI_OK;
+}
+
+static int _edgi_backend_get_output(rt_ai_t ai, rt_ai_uint32_t index)
+{
+    if (ai == RT_AI_NULL || index >= ai->info.output_n)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    ai->output[index] = (rt_ai_buffer_t *)backend_edgi_get_output(index);
+
+    return ai->output[index] ? RT_AI_OK : -RT_AI_ERROR;
+}
+
+static int _edgi_backend_get_info(rt_ai_t ai, rt_ai_buffer_t *buf)
+{
+    RT_UNUSED(ai);
+    RT_UNUSED(buf);
+    return RT_AI_OK;
+}
+
+static int _edgi_backend_config(rt_ai_t ai, int cmd, rt_ai_buffer_t *args)
+{
+    RT_UNUSED(ai);
+    RT_UNUSED(cmd);
+    RT_UNUSED(args);
+    return RT_AI_OK;
+}
+
+int backend_edgi(void *edgi_handle)
+{
+    rt_ai_t ai;
+
+    if (edgi_handle == RT_AI_NULL)
+    {
+        return -RT_AI_ERROR;
+    }
+
+    ai = RT_AI_T(edgi_handle);
+
+    ai->init = _edgi_backend_init;
+    ai->get_input = _edgi_backend_get_input;
+    ai->run = _edgi_backend_run;
+    ai->get_output = _edgi_backend_get_output;
+    ai->get_info = _edgi_backend_get_info;
+    ai->config = _edgi_backend_config;
+
+    /*
+     * Edgi backend uses static input/output buffers.
+     * Do not let rt_ai_allocate_buffer() allocate from external work_buf.
+     */
+    ai->mem_flag = 0;
+
+    return RT_AI_OK;
+}
+
+#endif /* RT_AI_USE_EDGI */

@@ -11,6 +11,7 @@
  */
 
 #include <stdint.h>
+#include <rtthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,34 @@ void *backend_edgi_get_output(uint32_t index);
 
 int backend_edgi_is_initialized(void);
 int backend_edgi_get_last_error(void);
+
+/* Low-level DeepCraft / Imagimob wrapper */
+int backend_edgi_init(const backend_edgi_config_t *config);
+int backend_edgi_run(const void *input, void *output);
+int backend_edgi_deinit(void);
+void *backend_edgi_get_input(uint32_t index);
+void *backend_edgi_get_output(uint32_t index);
+int backend_edgi_is_initialized(void);
+int backend_edgi_get_last_error(void);
+
+#ifdef RT_AI_USE_EDGI
+
+#include "rt_ai.h"
+#include "rt_ai_common.h"
+
+typedef struct edgi_ai
+{
+    struct rt_ai parent;
+    backend_edgi_config_t config;
+} edgi_ai_t;
+
+#define EDGI_AI_T(h)    ((edgi_ai_t *)(h))
+
+/* RT-AK backend constructor, used by rt_ai_register() */
+int backend_edgi(void *edgi_handle);
+
+#endif /* RT_AI_USE_EDGI */
+
 
 #ifdef __cplusplus
 }

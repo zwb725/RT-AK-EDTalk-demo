@@ -192,6 +192,7 @@ def main(argv=None):
 
     return ret
 
+print("exported : Kconfig")
 
 if __name__ == "__main__":
     sys.exit(main())
