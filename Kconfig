@@ -40,7 +40,7 @@ config RT_AI_EDGI_MINIMAL_DEMO
     bool "Enable Edgi RT-AK minimal MSH demo"
     default y
     help
-        Build rt_ai_edgi_rtak_api_demo command for board-side validation.
+        Build rt_ai_edgi_minimal_demo command for board-side validation.
 
 endif
 
