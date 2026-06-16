@@ -13,6 +13,21 @@ menuconfig RT_AI_USE_EDGI
 
 if RT_AI_USE_EDGI
 
+choice
+    prompt "Select Edgi AI model"
+    default RT_AI_EDGI_MODEL_OBJECT_DETECT
+
+config RT_AI_EDGI_MODEL_OBJECT_DETECT
+    bool "Object detect model"
+    help
+        Build the current DeepCraft object detection model.
+        Only one Edgi model is linked into the firmware.
+
+endchoice
+
+# Future model choices can be added here, for example
+# RT_AI_EDGI_MODEL_HAND_GESTURE or RT_AI_EDGI_MODEL_FACE_DETECT.
+
 config RT_AI_USE_M55_ETHOSU
     bool "Enable Cortex-M55 / Ethos-U55 runtime binding"
     default y

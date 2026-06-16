@@ -31,7 +31,8 @@ extern "C" {
 #define RT_AI_OBJECT_DETECT_BUFFER_ALIGNMENT        (16U)
 
 /*
- * Compatibility aliases used by minimal demo.
+ * Legacy aliases kept for existing generated demo config users.
+ * Application code should prefer rt_ai_edgi_active_model.h.
  */
 #define RT_AI_OBJECT_DETECT_INPUT_SIZE              RT_AI_OBJECT_DETECT_IN_1_SIZE
 #define RT_AI_OBJECT_DETECT_OUTPUT_SIZE             RT_AI_OBJECT_DETECT_OUT_1_SIZE

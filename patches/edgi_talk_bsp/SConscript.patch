@@ -1,0 +1,14 @@
+diff --git a/libraries/Common/deepcraft_ai/SConscript b/libraries/Common/deepcraft_ai/SConscript
+index e1dda21..52e2186 100644
+--- a/libraries/Common/deepcraft_ai/SConscript
++++ b/libraries/Common/deepcraft_ai/SConscript
+@@ -30,6 +30,9 @@ cpp_path = [
+     cwd + '/model',
+     usb_port,
+     project_root + '/applications',
++    project_root + '/applications/rt_ai_edgi',
++    project_root + '/rt_ai_lib/include',
++    project_root + '/rt_ai_lib/backend_plugin_edgi',
+     ml_middleware + '/include',
+     ml_middleware + '/source',
+     ml_middleware + '/source/COMPONENT_ML_TFLM',

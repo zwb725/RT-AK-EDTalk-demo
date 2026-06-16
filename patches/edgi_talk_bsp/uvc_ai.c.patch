@@ -1,0 +1,133 @@
+diff --git a/libraries/Common/deepcraft_ai/src/uvc_ai.c b/libraries/Common/deepcraft_ai/src/uvc_ai.c
+index 92415c0..4a19f02 100644
+--- a/libraries/Common/deepcraft_ai/src/uvc_ai.c
++++ b/libraries/Common/deepcraft_ai/src/uvc_ai.c
+@@ -6,7 +6,9 @@
+ #include "model.h"
+ #include "mtb_ml.h"
+ #include "usb_config.h"
+-#include "rt_ai_object_detect_model.h"
++#include "rt_ai.h"
++#include "rt_ai_edgi_active_model.h"
++#include "backend_edgi.h"
+
+ #undef USB_DBG_TAG
+ #define USB_DBG_TAG "uvc_ai"
+@@ -31,6 +33,7 @@ static UVC_AI_ML_INPUT_SECTION UVC_AI_ALIGN_16 uint8_t g_model_input_u8[IMAI_DAT
+ static UVC_AI_DTCM_SECTION float g_model_output[IMAI_DATAOUT_COUNT];
+
+ static uint8_t g_ai_initialized;
++static rt_ai_t g_uvc_ai_handle = RT_AI_NULL;
+ static uint16_t g_src_width;
+ static uint16_t g_src_height;
+ static uint64_t g_last_npu_cycles;
+@@ -288,17 +291,30 @@ int uvc_ai_init(const uvc_ai_config_t *config)
+         g_restore_unalign_trp = 0U;
+     }
+
+-ret = rt_ai_object_detect_model_init();
+-if (ret != 0) {
+-    USB_LOG_ERR("RT-AK Edgi model init failed: %d\r\n", ret);
+-    if (g_restore_unalign_trp) {
+-        SCB->CCR = g_saved_ccr;
+-        __DSB();
+-        __ISB();
+-        g_restore_unalign_trp = 0U;
++    g_uvc_ai_handle = rt_ai_find(RT_AI_EDGI_ACTIVE_MODEL_NAME);
++    if (g_uvc_ai_handle == RT_AI_NULL) {
++        USB_LOG_ERR("RT-AK Edgi model not found: %s\r\n", RT_AI_EDGI_ACTIVE_MODEL_NAME);
++        if (g_restore_unalign_trp) {
++            SCB->CCR = g_saved_ccr;
++            __DSB();
++            __ISB();
++            g_restore_unalign_trp = 0U;
++        }
++        return -RT_ERROR;
++    }
++
++    ret = rt_ai_init(g_uvc_ai_handle, RT_AI_NULL);
++    if (ret != RT_AI_OK) {
++        USB_LOG_ERR("RT-AK Edgi model init failed: %d\r\n", ret);
++        g_uvc_ai_handle = RT_AI_NULL;
++        if (g_restore_unalign_trp) {
++            SCB->CCR = g_saved_ccr;
++            __DSB();
++            __ISB();
++            g_restore_unalign_trp = 0U;
++        }
++        return -RT_ERROR;
+     }
+-    return -RT_ERROR;
+-}
+
+     /*
+      * AI input is fixed to 320x240 top area + 80-line bottom padding.
+@@ -327,7 +343,13 @@ void uvc_ai_deinit(void)
+         return;
+     }
+
+-    rt_ai_object_detect_model_deinit();
++    if (g_uvc_ai_handle != RT_AI_NULL) {
++        int ret = rt_ai_config(g_uvc_ai_handle, RT_AI_EDGI_CMD_DEINIT, RT_AI_NULL);
++        if (ret != RT_AI_OK) {
++            USB_LOG_ERR("RT-AK Edgi model deinit failed: %d\r\n", ret);
++        }
++        g_uvc_ai_handle = RT_AI_NULL;
++    }
+     if (g_restore_unalign_trp) {
+         SCB->CCR = g_saved_ccr;
+         __DSB();
+@@ -380,28 +402,37 @@ UVC_AI_ITCM_SECTION int uvc_ai_process_yuyv(const uint8_t *yuyv, uint32_t yuyv_s
+     npu_cycles_before = mtb_ml_npu_cycles;
+     start_tick = rt_tick_get();
+     {
+-    uint8_t *rtak_input;
+-    float *rtak_output;
+-    int rtak_ret;
++        uint8_t *rtak_input;
++        float *rtak_output;
++        int rtak_ret;
+
+-    rtak_input = (uint8_t *)rt_ai_object_detect_model_get_input(0);
+-    rtak_output = (float *)rt_ai_object_detect_model_get_output(0);
++        if (g_uvc_ai_handle == RT_AI_NULL) {
++            USB_LOG_ERR("RT-AK Edgi model handle is NULL\r\n");
++            return -RT_ERROR;
++        }
+
+-    if ((rtak_input == RT_NULL) || (rtak_output == RT_NULL)) {
+-        USB_LOG_ERR("RT-AK Edgi buffer is NULL\r\n");
+-        return -RT_ERROR;
+-    }
++        rtak_input = (uint8_t *)rt_ai_input(g_uvc_ai_handle, 0);
++        if (rtak_input == RT_NULL) {
++            USB_LOG_ERR("RT-AK Edgi input is NULL\r\n");
++            return -RT_ERROR;
++        }
+
+-    memcpy(rtak_input, g_model_input_u8, IMAI_DATAIN_COUNT);
++        memcpy(rtak_input, g_model_input_u8, RT_AI_EDGI_ACTIVE_INPUT_BYTES);
+
+-    rtak_ret = rt_ai_object_detect_model_run();
+-    if (rtak_ret != 0) {
+-        USB_LOG_ERR("RT-AK Edgi model run failed: %d\r\n", rtak_ret);
+-        return -RT_ERROR;
+-    }
++        rtak_ret = rt_ai_run(g_uvc_ai_handle, RT_AI_NULL, RT_AI_NULL);
++        if (rtak_ret != RT_AI_OK) {
++            USB_LOG_ERR("RT-AK Edgi model run failed: %d\r\n", rtak_ret);
++            return -RT_ERROR;
++        }
+
+-    memcpy(g_model_output, rtak_output, IMAI_DATAOUT_COUNT * sizeof(float));
+-}
++        rtak_output = (float *)rt_ai_output(g_uvc_ai_handle, 0);
++        if (rtak_output == RT_NULL) {
++            USB_LOG_ERR("RT-AK Edgi output is NULL\r\n");
++            return -RT_ERROR;
++        }
++
++        memcpy(g_model_output, rtak_output, RT_AI_EDGI_ACTIVE_OUTPUT_BYTES);
++    }
+     end_tick = rt_tick_get();
+     npu_cycles_after = mtb_ml_npu_cycles;

@@ -83,7 +83,8 @@ extern "C" {{
 #define RT_AI_{macro}_BUFFER_ALIGNMENT        (16U)
 
 /*
- * Compatibility aliases used by minimal demo.
+ * Legacy aliases kept for existing generated demo config users.
+ * Application code should prefer rt_ai_edgi_active_model.h.
  */
 #define RT_AI_{macro}_INPUT_SIZE              RT_AI_{macro}_IN_1_SIZE
 #define RT_AI_{macro}_OUTPUT_SIZE             RT_AI_{macro}_OUT_1_SIZE

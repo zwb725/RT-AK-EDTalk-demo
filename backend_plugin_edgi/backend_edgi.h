@@ -15,6 +15,8 @@ extern "C" {
 #define BACKEND_EDGI_ERROR_NOT_INIT     (-3)
 #define BACKEND_EDGI_ERROR_BAD_INDEX    (-4)
 
+#define RT_AI_EDGI_CMD_DEINIT           (0x100)
+
 #ifndef BACKEND_EDGI_INPUT_SIZE
 #define BACKEND_EDGI_INPUT_SIZE         (320U * 320U * 3U)
 #endif

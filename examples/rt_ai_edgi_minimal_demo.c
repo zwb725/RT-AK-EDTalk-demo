@@ -20,7 +20,7 @@
 #include <stdint.h>
 
 #include "rt_ai.h"
-#include "rt_ai_object_detect_model.h"
+#include "rt_ai_edgi_active_model.h"
 
 static void rt_ai_edgi_fill_test_input(uint8_t *input, uint32_t size)
 {
@@ -76,14 +76,14 @@ static int rt_ai_edgi_minimal_demo(int argc, char **argv)
 
     rt_kprintf("RT-AK Edgi standard API demo start\r\n");
 
-    model = rt_ai_find(RT_AI_OBJECT_DETECT_MODEL_NAME);
+    model = rt_ai_find(RT_AI_EDGI_ACTIVE_MODEL_NAME);
     if (model == RT_NULL)
     {
-        rt_kprintf("rt_ai_find failed: %s\r\n", RT_AI_OBJECT_DETECT_MODEL_NAME);
+        rt_kprintf("rt_ai_find failed: %s\r\n", RT_AI_EDGI_ACTIVE_MODEL_NAME);
         return -1;
     }
 
-    rt_kprintf("rt_ai_find success: %s\r\n", RT_AI_OBJECT_DETECT_MODEL_NAME);
+    rt_kprintf("rt_ai_find success: %s\r\n", RT_AI_EDGI_ACTIVE_MODEL_NAME);
 
     ret = rt_ai_init(model, RT_NULL);
     if (ret != RT_AI_OK)
@@ -103,7 +103,7 @@ static int rt_ai_edgi_minimal_demo(int argc, char **argv)
 
     rt_kprintf("rt_ai_input success: %p\r\n", input);
 
-    rt_ai_edgi_fill_test_input(input, RT_AI_OBJECT_DETECT_INPUT_SIZE);
+    rt_ai_edgi_fill_test_input(input, RT_AI_EDGI_ACTIVE_INPUT_BYTES);
 
     ret = rt_ai_run(model, RT_NULL, RT_NULL);
     if (ret != RT_AI_OK)
@@ -123,7 +123,7 @@ static int rt_ai_edgi_minimal_demo(int argc, char **argv)
 
     rt_kprintf("rt_ai_output success: %p\r\n", output);
 
-    rt_ai_edgi_print_output_as_hex(output, RT_AI_OBJECT_DETECT_OUTPUT_SIZE);
+    rt_ai_edgi_print_output_as_hex(output, RT_AI_EDGI_ACTIVE_OUTPUT_COUNT);
 
     rt_kprintf("RT-AK Edgi standard API demo end\r\n");
 

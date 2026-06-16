@@ -13,34 +13,41 @@
 #include "rt_ai.h"
 #include "rt_ai_common.h"
 #include "backend_edgi.h"
+#include "model.h"
 #include "rt_ai_object_detect_model.h"
 
 #ifdef RT_AI_USE_EDGI
 
-/*
- * RT-AK rt_ai_info uses input_n_stack / output_n_stack
- * to describe tensor byte sizes.
- *
- * Current Edgi model:
- * - input : uint8 RGB888, 320 * 320 * 3 bytes
- * - output: float32, 40 elements
- */
-static rt_ai_uint32_t rt_ai_object_detect_input_size[] =
-{
-    RT_AI_OBJECT_DETECT_IN_1_SIZE_BYTES,
-};
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define RT_AI_OBJECT_DETECT_STATIC_ASSERT(_expr, _msg) _Static_assert((_expr), _msg)
+#else
+#define RT_AI_OBJECT_DETECT_STATIC_ASSERT_GLUE2(_a, _b) _a##_b
+#define RT_AI_OBJECT_DETECT_STATIC_ASSERT_GLUE(_a, _b) \
+    RT_AI_OBJECT_DETECT_STATIC_ASSERT_GLUE2(_a, _b)
+#define RT_AI_OBJECT_DETECT_STATIC_ASSERT(_expr, _msg) \
+    typedef char RT_AI_OBJECT_DETECT_STATIC_ASSERT_GLUE( \
+        rt_ai_object_detect_static_assert_, __LINE__)[(_expr) ? 1 : -1]
+#endif
 
-static rt_ai_uint32_t rt_ai_object_detect_output_size[] =
-{
-    RT_AI_OBJECT_DETECT_OUT_1_SIZE_BYTES,
-};
+RT_AI_OBJECT_DETECT_STATIC_ASSERT(
+    RT_AI_OBJECT_DETECT_IN_1_SIZE == IMAI_DATAIN_COUNT,
+    "RT-AK Edgi input count mismatch");
+RT_AI_OBJECT_DETECT_STATIC_ASSERT(
+    RT_AI_OBJECT_DETECT_IN_1_SIZE_BYTES == (IMAI_DATAIN_COUNT * sizeof(IMAI_DATAIN_TYPE)),
+    "RT-AK Edgi input byte size mismatch");
+RT_AI_OBJECT_DETECT_STATIC_ASSERT(
+    RT_AI_OBJECT_DETECT_OUT_1_SIZE == IMAI_DATAOUT_COUNT,
+    "RT-AK Edgi output count mismatch");
+RT_AI_OBJECT_DETECT_STATIC_ASSERT(
+    RT_AI_OBJECT_DETECT_OUT_1_SIZE_BYTES == (IMAI_DATAOUT_COUNT * sizeof(IMAI_DATAOUT_TYPE)),
+    "RT-AK Edgi output byte size mismatch");
 
 #define RT_AI_OBJECT_DETECT_INFO                       \
 {                                               \
     RT_AI_OBJECT_DETECT_IN_NUM,                        \
     RT_AI_OBJECT_DETECT_OUT_NUM,                       \
-    rt_ai_object_detect_input_size,                   \
-    rt_ai_object_detect_output_size,                  \
+    { RT_AI_OBJECT_DETECT_IN_1_SIZE_BYTES },         \
+    { RT_AI_OBJECT_DETECT_OUT_1_SIZE_BYTES },        \
     RT_AI_OBJECT_DETECT_WORK_BUFFER_BYTES,             \
     0,                                           \
 }

@@ -267,9 +267,18 @@ static int _edgi_backend_get_info(rt_ai_t ai, rt_ai_buffer_t *buf)
 static int _edgi_backend_config(rt_ai_t ai, int cmd, rt_ai_buffer_t *args)
 {
     RT_UNUSED(ai);
-    RT_UNUSED(cmd);
     RT_UNUSED(args);
-    return RT_AI_OK;
+
+    switch (cmd)
+    {
+    case RT_AI_EDGI_CMD_DEINIT:
+        return backend_edgi_deinit() == BACKEND_EDGI_OK
+                   ? RT_AI_OK
+                   : -RT_AI_ERROR;
+
+    default:
+        return -RT_AI_ERROR;
+    }
 }
 
 int backend_edgi(void *edgi_handle)

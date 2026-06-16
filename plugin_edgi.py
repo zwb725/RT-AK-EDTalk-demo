@@ -129,7 +129,7 @@ def generate_model_wrapper(opt):
 
 
 def export_generated_files(opt):
-    """导出插件产物到 BSP applications/rt_ai_edgi。"""
+    """导出插件产物到 BSP applications/rt_ai_edgi 和 rt_ai_lib/backend_plugin_edgi。"""
     try:
         target_dir = export_to_project(
             project=opt.project,
@@ -143,16 +143,18 @@ def export_generated_files(opt):
     print("=" * 70)
     print("Edgi RT-AK files exported")
     print("=" * 70)
-    print(f"target_dir : {target_dir}")
-    print("exported   : backend_plugin_edgi/")
-    print("exported   : generated/")
-    print("exported   : SConscript")
-    print("exported : Kconfig")
+    print(f"app_dir    : {target_dir}")
+    print(f"backend_dir: {Path(opt.project).resolve() / 'rt_ai_lib' / 'backend_plugin_edgi'}")
+    print("exported   : applications/rt_ai_edgi/generated/")
+    print("exported   : applications/rt_ai_edgi/SConscript")
+    print("exported   : applications/rt_ai_edgi/Kconfig")
+    print("exported   : applications/rt_ai_edgi/rt_ai_edgi_active_model.h")
+    print("exported   : applications/rt_ai_edgi/rt_ai_edgi_minimal_demo.c")
+    print("exported   : rt_ai_lib/backend_plugin_edgi/")
     print("-" * 70)
-    print("注意：已导出 applications/rt_ai_edgi/Kconfig。")
-    print("注意：仍需在 BSP 根 Kconfig 中手动添加：")
+    print("注意：已幂等检查 BSP 根 Kconfig source：")
     print('source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"')
-    print("注意：当前阶段未修改 BSP 根目录 SConscript / rtconfig.h / Kconfig。")
+    print("注意：当前阶段未修改 BSP 根目录 SConscript / rtconfig.h。")
     print("=" * 70)
 
     return 0

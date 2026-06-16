@@ -1,8 +1,8 @@
-\# Edgi RT-AK Backend
+# Edgi RT-AK Backend
 
 
 
-\## 1. 当前目标
+## 1. 当前目标
 
 
 

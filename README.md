@@ -44,7 +44,7 @@ rt_ai_output 成功
 usbh_uvc_start 0 320 240 启动成功
 UVC 摄像头画面正常
 AI async worker 正常
-RT-AK wrapper/backend 能触发 IMAI_compute
+标准 RT-AK API / backend 能触发 IMAI_compute
 LCD 能显示 Rock / Paper / Scissors 检测框
 ```
 
@@ -55,7 +55,7 @@ LCD 能显示 Rock / Paper / Scissors 检测框
 当前版本可以定义为：
 
 ```text
-RT-AK Edgi plugin v0.1：主链路跑通版
+RT-AK Edgi plugin v0.2：标准 RT-AK API 与单模型条件编译收口版
 ```
 
 已验证能力：
@@ -64,7 +64,7 @@ RT-AK Edgi plugin v0.1：主链路跑通版
 | ----------------------------------- | ---- |
 | RT-AK 插件自动下载                        | 已通过  |
 | `--dry_run` 检查                      | 已通过  |
-| `--generate` 生成模型 wrapper           | 已通过  |
+| `--generate` 生成模型注册文件           | 已通过  |
 | `--export` 导出到 BSP                  | 已通过  |
 | RT-AK core runtime 接入               | 已通过  |
 | SCons 编译链接                          | 已通过  |
@@ -74,20 +74,16 @@ RT-AK Edgi plugin v0.1：主链路跑通版
 | UVC 摄像头实时推理                         | 已通过  |
 | LCD overlay 出框                      | 已通过  |
 
-当前仍保留一个过渡设计：
+当前 v0.2 收口状态：
 
 ```text
-legacy UVC compatibility wrapper
-```
-
-原 Edgi UVC 链路仍通过 `rt_ai_object_detect_model_*()` wrapper 接入 RT-AK backend。该 wrapper 是兼容层，不是最终架构。后续目标是将 UVC demo 改为直接调用标准 RT-AK API：
-
-```c
-rt_ai_find();
-rt_ai_init();
-rt_ai_input();
-rt_ai_run();
-rt_ai_output();
+真实 UVC 已直接使用标准 RT-AK API
+compatibility wrapper 已移除
+backend 只导出到 rt_ai_lib/backend_plugin_edgi
+当前通过 Kconfig 编译期选择一个模型
+当前只支持 object_detect
+不支持运行时模型切换
+未进行内存管理和零拷贝优化
 ```
 
 ---
@@ -201,9 +197,7 @@ Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision/
         ├── SConscript
         ├── Kconfig
         ├── rt_ai_edgi_minimal_demo.c
-        ├── backend_plugin_edgi/
-        │   ├── backend_edgi.c
-        │   └── backend_edgi.h
+        ├── rt_ai_edgi_active_model.h
         └── generated/
             └── object_detect/
                 ├── rt_ai_object_detect_model.c
@@ -214,8 +208,7 @@ Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision/
 说明：
 
 ```text
-实际编译时，backend_edgi.c 只由 rt_ai_lib/backend_plugin_edgi 编译；
-applications/rt_ai_edgi/backend_plugin_edgi 保留为导出产物与调试参考，避免重复链接。
+实际编译时，backend_edgi.c 只由 rt_ai_lib/backend_plugin_edgi 编译；applications/rt_ai_edgi 下不再导出 backend_plugin_edgi 副本。
 ```
 
 ---
@@ -241,7 +234,7 @@ RT-AK/rt_ai_tools/platforms/support_platforms.json
 验证自动下载：
 
 ```powershell
-cd C:\RT-AK\edge-ai\RT-AK\rt_ai_tools
+cd $FreshTools
 
 python aitools.py `
   --platform edgi `
@@ -253,14 +246,14 @@ python aitools.py `
 ### 5.2 dry-run 检查
 
 ```powershell
-cd C:\RT-AK\edge-ai\RT-AK\rt_ai_tools
+cd $FreshTools
 
 python aitools.py `
   --log .\edgi_dryrun.log `
-  --project C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision `
+  --project $Bsp `
   --platform edgi `
   --model_name object_detect `
-  --deepcraft_dir C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision\libraries\Common\deepcraft_ai\model `
+  --deepcraft_dir $DeepCraftDir `
   --dry_run
 ```
 
@@ -292,14 +285,14 @@ IMAI_api
 ### 5.3 generate / export
 
 ```powershell
-cd C:\RT-AK\edge-ai\RT-AK\rt_ai_tools
+cd $FreshTools
 
 python aitools.py `
   --log .\edgi_export.log `
-  --project C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision `
+  --project $Bsp `
   --platform edgi `
   --model_name object_detect `
-  --deepcraft_dir C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision\libraries\Common\deepcraft_ai\model `
+  --deepcraft_dir $DeepCraftDir `
   --generate `
   --export
 ```
@@ -332,7 +325,7 @@ rt_ai_lib/
 如果工具链路径未配置，需要先设置：
 
 ```powershell
-$env:RTT_EXEC_PATH = "C:\RT-ThreadStudio\platform\env_released\env\tools\gnu_gcc\arm_gcc\mingw\bin"
+$env:RTT_EXEC_PATH = $ArmGccBin
 ```
 
 验证工具链：
@@ -344,7 +337,7 @@ $env:RTT_EXEC_PATH = "C:\RT-ThreadStudio\platform\env_released\env\tools\gnu_gcc
 编译：
 
 ```powershell
-cd C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision
+cd $Bsp
 
 scons -c
 scons -j6
@@ -426,17 +419,19 @@ msh />usbh_uvc_start 0 320 240
 
 ```text
 [I/uvc_app] UVC start: 320x240 format=yuyv
-[RT-AK][Edgi][Compat] init success
+[I/uvc_disp] LCD: 512x800 16bpp fb=0x263fb000 size=819200
 [I/uvc_ai] AI clocks cpu=399MHz npu=399MHz cache=2
 [I/uvc_ai] AI model initialized
 [I/uvc_ai_app] AI app started (async)
 [I/uvc_app] frame #1 size=153600 fmt=yuyv
 
-[I/uvc_ai] AI inference 129.0 ms (prep 4.0 ms, npu 33.6 ms), det=0
-[I/uvc_ai] AI inference 127.0 ms (prep 4.0 ms, npu 33.6 ms), det=1
-[I/uvc_ai] AI #0 Rock 50.20% bbox=[100,95,192,168]
-[I/uvc_ai] AI #0 Paper 68.92% bbox=[92,61,189,192]
-[I/uvc_ai] AI #0 Scissors 30.42% bbox=[83,66,180,197]
+[I/uvc_ai] AI inference 120.0 ms (prep 4.0 ms, npu 33.6 ms), det=1
+[I/uvc_ai] AI #0 Rock 47.92% bbox=[170,66,287,158]
+[I/uvc_ai] AI #0 Scissors 42.11% bbox=[124,51,274,202]
+[I/uvc_ai] AI #0 Paper 50.20% bbox=[100,27,289,177]
+[I/uvc_app] UVC fps:30 disp:13 drop:140 urb:10358
+[I/uvc_ai] AI model deinitialized
+[I/uvc_app] UVC stopped
 ```
 
 当前真实运行链路：
@@ -450,21 +445,25 @@ uvc_ai_app async worker
 ↓
 YUYV -> RGB888 预处理
 ↓
-rt_ai_object_detect_model_get_input()
+rt_ai_find()
+↓
+rt_ai_init()
 ↓
 rt_ai_input()
 ↓
-rt_ai_object_detect_model_run()
+memcpy input
 ↓
 rt_ai_run()
+↓
+rt_ai_output()
+↓
+memcpy output
 ↓
 backend_edgi_run()
 ↓
 IMAI_compute()
 ↓
 Ethos-U55 / TFLM 推理
-↓
-backend output buffer
 ↓
 原后处理
 ↓
@@ -473,7 +472,7 @@ Rock / Paper / Scissors 检测结果
 LCD overlay
 ```
 
-该结果说明：当前已经完成真实摄像头输入、异步 worker、M55 + Ethos-U55 推理、后处理和 LCD overlay 的完整链路验证。
+该结果说明：当前已经完成真实摄像头输入、异步 worker、M55 + Ethos-U55 推理、后处理和 LCD overlay 实时出框的完整链路验证；UVC stop 路径也已触发 backend deinit。
 
 ---
 
@@ -501,37 +500,7 @@ backend_edgi()
 object_detect 注册到 RT-AK core
 ```
 
-同时当前保留 legacy compatibility wrapper：
-
-```c
-rt_ai_object_detect_model_init();
-rt_ai_object_detect_model_run();
-rt_ai_object_detect_model_deinit();
-rt_ai_object_detect_model_get_input();
-rt_ai_object_detect_model_get_output();
-```
-
-wrapper 内部转调标准 RT-AK API / backend buffer：
-
-```text
-rt_ai_object_detect_model_init()
-    -> rt_ai_find("object_detect")
-    -> rt_ai_init()
-
-rt_ai_object_detect_model_get_input()
-    -> rt_ai_input()
-
-rt_ai_object_detect_model_run()
-    -> rt_ai_run()
-    -> backend_edgi_run()
-    -> IMAI_compute()
-
-rt_ai_object_detect_model_get_output()
-    -> rt_ai_output()
-
-rt_ai_object_detect_model_deinit()
-    -> backend_edgi_deinit()
-```
+生成的模型注册文件不再生成 `rt_ai_object_detect_model_*()` compatibility wrapper。UVC 和 minimal demo 均通过 `rt_ai_find / rt_ai_init / rt_ai_input / rt_ai_run / rt_ai_output` 接入。
 
 ---
 
@@ -640,38 +609,20 @@ applications/rt_ai_edgi/SConscript 只编译 generated model 和 minimal demo
 | `rt-thread.elf` 被占用                               | RT-Thread Studio / OpenOCD / GDB 占用文件  | 关闭调试会话后重新编译                                   |
 | `rt_ai.h` 缺失                                      | BSP 尚未接入 RT-AK core runtime            | 导出并编译 `rt_ai_lib`                             |
 | `backend_edgi_*` multiple definition              | backend 编译了两份                          | 只在 `rt_ai_lib/backend_plugin_edgi` 编译 backend |
-| `rt_ai_object_detect_model_*` undefined reference | 原 UVC 链路仍调用旧 wrapper                   | generated model 生成 compatibility wrapper      |
+| `rt_ai_object_detect_model_*` undefined reference | 残留代码仍调用旧 wrapper                   | 迁移到标准 RT-AK API，重新 generate/export      |
 
 ---
 
 ## 9. 当前未完成项
 
-### 9.1 UVC 链路仍保留 compatibility wrapper
+### 9.1 UVC 板端 stop/start 回归验证
 
-当前链路：
-
-```text
-uvc_ai.c
-↓
-rt_ai_object_detect_model_* compatibility wrapper
-↓
-RT-AK standard API
-↓
-backend_edgi
-↓
-IMAI_compute
-```
-
-后续目标：
+当前代码已迁移到标准 RT-AK API，仍需在真实板端重复验证：
 
 ```text
-uvc_ai_rtak_app.c
-↓
-rt_ai_find()
-rt_ai_init()
-rt_ai_input()
-rt_ai_run()
-rt_ai_output()
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
+usbh_uvc_start 0 320 240
 ```
 
 ---
@@ -760,7 +711,7 @@ drop frame 持续增长
 
 ```text
 原生 IMAI_compute 路径耗时
-RT-AK wrapper/backend 路径耗时
+标准 RT-AK API / backend 路径耗时
 额外 memcpy 开销
 UVC fps
 display fps
@@ -773,6 +724,28 @@ NPU cycles
 ## 10. 后续路线
 
 ### P0：当前版本固化
+
+状态：
+
+```text
+部分完成
+```
+
+已完成：
+
+```text
+README.md 已补充 v0.2 状态和板端验证结论
+docs/minimal_demo_board_validation.md 已记录 minimal demo 板端验证
+docs/uvc_rtak_integration_validation.md 已记录标准 RT-AK API、真实摄像头推理和 LCD 实时出框
+patches/edgi_talk_bsp/uvc_ai.c.patch 已归档
+patches/edgi_talk_bsp/SConscript.patch 已归档
+```
+
+仍需完成：
+
+```text
+提交插件仓库
+```
 
 目标：
 
@@ -797,10 +770,30 @@ patches/edgi_talk_bsp/SConscript.patch
 
 ### P1：标准 RT-AK API 对齐
 
+状态：
+
+```text
+主体已完成，stop 后第二次 start 仍需单独回归
+```
+
+已完成：
+
+```text
+UVC example 已从 rt_ai_object_detect_model_* wrapper 迁移到标准 RT-AK API
+真实 UVC 链路已通过 rt_ai_find / rt_ai_init / rt_ai_input / rt_ai_run / rt_ai_output 执行推理
+usbh_uvc_stop 已触发 RT-AK backend deinit
+```
+
+仍需完成：
+
+```text
+同一次上电周期内执行 usbh_uvc_start -> usbh_uvc_stop -> usbh_uvc_start 回归验证
+```
+
 目标：
 
 ```text
-让 UVC example 从 compatibility wrapper 过渡到标准 RT-AK API
+让 UVC example 保持标准 RT-AK API 路径并验证 stop/start 生命周期
 ```
 
 目标调用形式：
@@ -819,6 +812,20 @@ output = rt_ai_output(model, 0);
 ---
 
 ### P2：UVC demo 清理与零拷贝优化
+
+状态：
+
+```text
+未完成
+```
+
+当前状态：
+
+```text
+当前链路仍保留 g_model_input_u8 -> RT-AK input buffer 的 memcpy
+当前链路仍保留 RT-AK output buffer -> g_model_output 的 memcpy
+preprocess / run / postprocess 已可区分，但还没有做零拷贝收口
+```
 
 目标：
 
@@ -840,6 +847,26 @@ LCD overlay
 
 ### P3：Kconfig / menuconfig 正规化
 
+状态：
+
+```text
+部分完成
+```
+
+已完成：
+
+```text
+插件侧已有 Kconfig 模型选择项
+SConscript 已按 Kconfig 选择单模型编译
+```
+
+仍需完成：
+
+```text
+RT_AI_USE_EDGI / RT_AI_USE_M55_ETHOSU / demo 开关完整进入 BSP menuconfig
+当前 BSP 仍需要手动补 rtconfig.h 中的 RT_AI_EDGI_MODEL_OBJECT_DETECT
+```
+
 目标：
 
 ```text
@@ -856,6 +883,29 @@ RT_AI_USE_EDGI / RT_AI_USE_M55_ETHOSU / demo 开关进入 Kconfig
 ---
 
 ### P4：模型切换能力
+
+状态：
+
+```text
+部分完成
+```
+
+已完成：
+
+```text
+plugin_edgi.py / 生成器已生成 rt_ai_<model>_model.c/h
+生成器已生成 rt_ai_edgi_demo_config.h
+UVC runner 已固定为标准 RT-AK API 调度形式
+当前 active model 通过 rt_ai_edgi_active_model.h 统一暴露 model name / input bytes / output bytes
+```
+
+仍需完成：
+
+```text
+接入第二个真实模型验证
+抽象 preprocess / postprocess 类型
+让模型差异完全通过配置和前后处理模块表达
+```
 
 目标：
 
@@ -904,7 +954,7 @@ npu_ms
 UVC fps
 display fps
 drop frame
-原生 IMAI 路径 vs RT-AK wrapper/backend 路径
+原生 IMAI 路径 vs 标准 RT-AK API / backend 路径
 ```
 
 ---
@@ -925,21 +975,20 @@ SCons 可集成
 rt-thread.elf 可生成
 MSH minimal demo 可运行
 rt_ai_find / rt_ai_init / rt_ai_input / rt_ai_run / rt_ai_output 可用
-真实 UVC 摄像头推理链路可通过 RT-AK wrapper/backend 执行
-LCD 可显示 Rock / Paper / Scissors 检测结果
+真实 UVC 摄像头推理链路可直接通过标准 RT-AK API / backend 执行
+LCD 可实时显示 Rock / Paper / Scissors 检测框
 ```
 
 当前仍需完善：
 
 ```text
-去除 compatibility wrapper
-UVC demo 标准 RT-AK API 化
-Kconfig / menuconfig 正规化
+stop 后第二次 start 回归验证
+未来第二模型适配
 RT-AK core runtime 工程化导出
 UVC 零拷贝优化
-backend 生命周期保护
+更复杂的 backend 生命周期保护
 性能对比文档
-模型切换配置生成
+内存管理优化
 ```
 
 本阶段最重要的结论是：
