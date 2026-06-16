@@ -42,10 +42,12 @@ rt_ai_run 成功
 rt_ai_output 成功
 
 usbh_uvc_start 0 320 240 启动成功
+usbh_uvc_stop 成功触发 AI model deinitialized / AI app stopped
+同一上电周期内第二次 usbh_uvc_start 0 320 240 启动成功
 UVC 摄像头画面正常
 AI async worker 正常
 标准 RT-AK API / backend 能触发 IMAI_compute
-LCD 能显示 Rock / Paper / Scissors 检测框
+LCD 已实测确认可实时显示 Rock / Paper / Scissors 检测框
 ```
 
 ---
@@ -72,6 +74,7 @@ RT-AK Edgi plugin v0.2：标准 RT-AK API 与单模型条件编译收口版
 | MSH minimal demo                    | 已通过  |
 | 标准 RT-AK API 路径                     | 已通过  |
 | UVC 摄像头实时推理                         | 已通过  |
+| UVC stop/start 生命周期                 | 已通过  |
 | LCD overlay 出框                      | 已通过  |
 
 当前 v0.2 收口状态：
@@ -80,6 +83,7 @@ RT-AK Edgi plugin v0.2：标准 RT-AK API 与单模型条件编译收口版
 真实 UVC 已直接使用标准 RT-AK API
 compatibility wrapper 已移除
 backend 只导出到 rt_ai_lib/backend_plugin_edgi
+UVC stop/start 生命周期已通过板端回归
 当前通过 Kconfig 编译期选择一个模型
 当前只支持 object_detect
 不支持运行时模型切换
@@ -474,6 +478,26 @@ LCD overlay
 
 该结果说明：当前已经完成真实摄像头输入、异步 worker、M55 + Ethos-U55 推理、后处理和 LCD overlay 实时出框的完整链路验证；UVC stop 路径也已触发 backend deinit。
 
+同一上电周期内已完成回归：
+
+```text
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
+```
+
+回归结论：
+
+```text
+第一次 start 成功，LCD 实时出框
+stop 成功触发 AI model deinitialized / AI app stopped
+第二次 start 成功，AI 推理和 LCD overlay 恢复
+第二次 stop 正常返回
+```
+
+stop 阶段可见 `uvc abort1` / `uvc abort2` 日志，但未阻断 AI deinit、UVC stopped 或后续第二次 start，目前按 stop 流程中的非致命日志记录。
+
 ---
 
 ## 7. 关键实现点
@@ -613,16 +637,26 @@ applications/rt_ai_edgi/SConscript 只编译 generated model 和 minimal demo
 
 ---
 
-## 9. 当前未完成项
+## 9. 当前剩余项与已关闭验证项
 
-### 9.1 UVC 板端 stop/start 回归验证
+### 9.1 已关闭：UVC 板端 stop/start 与 LCD 实时出框回归验证
 
-当前代码已迁移到标准 RT-AK API，仍需在真实板端重复验证：
+当前代码已迁移到标准 RT-AK API，并已在真实板端完成如下回归：
 
 ```text
 usbh_uvc_start 0 320 240
 usbh_uvc_stop
 usbh_uvc_start 0 320 240
+usbh_uvc_stop
+```
+
+已确认：
+
+```text
+最小 RT-AK API demo 可运行，且不再触发 tshell stack overflow
+真实 UVC 链路可通过 rt_ai_find / rt_ai_init / rt_ai_input / rt_ai_run / rt_ai_output 推理
+stop 后可再次 start
+LCD 已实测确认可实时出框
 ```
 
 ---
@@ -728,7 +762,7 @@ NPU cycles
 状态：
 
 ```text
-部分完成
+已完成
 ```
 
 已完成：
@@ -739,12 +773,7 @@ docs/minimal_demo_board_validation.md 已记录 minimal demo 板端验证
 docs/uvc_rtak_integration_validation.md 已记录标准 RT-AK API、真实摄像头推理和 LCD 实时出框
 patches/edgi_talk_bsp/uvc_ai.c.patch 已归档
 patches/edgi_talk_bsp/SConscript.patch 已归档
-```
-
-仍需完成：
-
-```text
-提交插件仓库
+本仓库代码和文档已提交并推送到 GitHub
 ```
 
 目标：
@@ -773,7 +802,7 @@ patches/edgi_talk_bsp/SConscript.patch
 状态：
 
 ```text
-主体已完成，stop 后第二次 start 仍需单独回归
+已完成
 ```
 
 已完成：
@@ -782,12 +811,8 @@ patches/edgi_talk_bsp/SConscript.patch
 UVC example 已从 rt_ai_object_detect_model_* wrapper 迁移到标准 RT-AK API
 真实 UVC 链路已通过 rt_ai_find / rt_ai_init / rt_ai_input / rt_ai_run / rt_ai_output 执行推理
 usbh_uvc_stop 已触发 RT-AK backend deinit
-```
-
-仍需完成：
-
-```text
-同一次上电周期内执行 usbh_uvc_start -> usbh_uvc_stop -> usbh_uvc_start 回归验证
+同一次上电周期内 usbh_uvc_start -> usbh_uvc_stop -> usbh_uvc_start 回归已通过
+LCD 已实测确认可实时出框
 ```
 
 目标：
@@ -982,7 +1007,6 @@ LCD 可实时显示 Rock / Paper / Scissors 检测框
 当前仍需完善：
 
 ```text
-stop 后第二次 start 回归验证
 未来第二模型适配
 RT-AK core runtime 工程化导出
 UVC 零拷贝优化
@@ -994,5 +1018,5 @@ UVC 零拷贝优化
 本阶段最重要的结论是：
 
 ```text
-Edgi / DeepCraft / Ethos-U55 推理链路已经可以收敛到 RT-AK 插件 backend，并且已通过真实板端 UVC 摄像头实时推理验证。
+Edgi / DeepCraft / Ethos-U55 推理链路已经可以收敛到 RT-AK 插件 backend，并且已通过真实板端 UVC 摄像头实时推理、stop/start 生命周期和 LCD 实时出框验证。
 ```
