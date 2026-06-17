@@ -1,105 +1,53 @@
-# RT-AK Edgi 插件使用教程
+# RT-AK Edgi 插件教程
 
-本仓库是 Edgi Talk / DeepCraft / Cortex-M55 / Ethos-U55 视觉推理工程的 RT-AK 平台插件。它的目标是把现有 Edgi BSP 中已经可运行的 DeepCraft 模型推理链路，接入 RT-AK 的标准模型注册和调用路径。
+本文档说明如何把 Edgi Talk BSP 中已经跑通的 DeepCraft / Imagimob object_detect 模型接入 RT-AK，并通过 GitHub 下载插件完成一键生成、导出、配置、编译和板端验证。
 
-当前版本面向单模型 `object_detect`，已验证的标准调用形式如下：
+当前插件面向 PSoC Edge E84 / Cortex-M55 / Ethos-U55 的 Edgi Talk 视觉推理工程，默认模型为 `object_detect`，输入为 `320x320 RGB888`，输出为 object detection 后处理所需的 float tensor。
 
-```c
-rt_ai_t model;
-void *input;
-void *output;
+## 1. 当前版本做到了什么
 
-model = rt_ai_find("object_detect");
-rt_ai_init(model, RT_NULL);
+当前版本已经把三个层次分清楚：
 
-input = rt_ai_input(model, 0);
-rt_ai_run(model, RT_NULL, RT_NULL);
-output = rt_ai_output(model, 0);
+```text
+rt_ai_edgi_minimal_demo
+    只验证标准 RT-AK API 是否能跑通模型。
+
+rt_ai_edgi_runner_demo
+    只验证配置化 runner 是否能通过 rt_ai_find/init/input/run/output 跑通模型。
+
+usbh_uvc_start 0 320 240
+    拉起真实 UVC 摄像头和 LCD 显示，并把每帧图像送入 RT-AK runner 推理后实时出框。
 ```
 
-插件不会把 UVC 摄像头、LCD overlay、后处理业务逻辑塞进 backend。backend 只负责把 RT-AK runtime 调用转接到 Edgi / DeepCraft runtime。
+真实 UVC 链路现在是：
 
-## 1. 适用范围
+```text
+UVC YUYV frame
+-> YUYV 转 RGB888，直接写入 rt_ai_input()
+-> rt_ai_run()
+-> rt_ai_output()
+-> object_detect 后处理
+-> LCD overlay 实时画框
+```
 
-当前教程基于以下工程形态：
+所以 `usbh_uvc_start` 仍然是摄像头和 LCD 的入口，但推理本身已经走 RT-AK 标准 API / runner 路径，不再只是调用原 BSP 的私有推理函数。
+
+## 2. 准备环境
+
+需要准备：
 
 ```text
 RT-AK 主仓库
-Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision BSP
-DeepCraft / Imagimob 生成产物：model.c / model.h
-Cortex-M55 + Ethos-U55 推理 runtime
-RT-Thread SCons 构建系统
+Edgi Talk BSP
+RT-Thread Studio / Env 工具链
+DeepCraft / Imagimob 生成的 model.c / model.h
 ```
 
-当前支持：
+Edgi Talk BSP 下载地址：
 
-```text
-模型名称：object_detect
-输入尺寸：320 x 320 x 3
-输入格式：RGB888
-输出尺寸：5 x 8
-板端 demo：rt_ai_edgi_minimal_demo
-真实链路：UVC -> RT-AK API -> backend_edgi -> IMAI_compute -> LCD overlay
-```
+[RT-Thread-Studio/sdk-bsp-psoc_e84-edgi-talk](https://github.com/RT-Thread-Studio/sdk-bsp-psoc_e84-edgi-talk)
 
-## 2. 插件导出的内容
-
-执行 `--generate --export` 后，插件会向 BSP 导出两类文件。
-
-应用侧文件：
-
-```text
-applications/rt_ai_edgi/
-├── Kconfig
-├── SConscript
-├── rt_ai_edgi_active_model.h
-├── rt_ai_edgi_minimal_demo.c
-└── generated/
-    └── object_detect/
-        ├── rt_ai_object_detect_model.c
-        ├── rt_ai_object_detect_model.h
-        └── rt_ai_edgi_demo_config.h
-```
-
-RT-AK runtime / backend 文件：
-
-```text
-rt_ai_lib/
-├── rt_ai.c
-├── rt_ai_common.c
-├── rt_ai_core.c
-├── rt_ai_runtime.c
-├── include/
-└── backend_plugin_edgi/
-    ├── backend_edgi.c
-    ├── backend_edgi.h
-    ├── ethosu_rtos_rtthread.c
-    └── SConscript
-```
-
-`backend_edgi.c` 只会导出到 `rt_ai_lib/backend_plugin_edgi`。`applications/rt_ai_edgi` 下不会再保留一份 backend 副本，避免 multiple definition。
-
-## 3. 准备路径
-
-先准备 Edgi Talk BSP。官方 BSP 仓库：
-
-```text
-https://github.com/RT-Thread-Studio/sdk-bsp-psoc_e84-edgi-talk
-```
-
-可以用 Git 下载：
-
-```powershell
-git clone https://github.com/RT-Thread-Studio/sdk-bsp-psoc_e84-edgi-talk.git
-```
-
-也可以通过 RT-Thread Studio 导入该 BSP 工程。导入后，本教程中的 BSP 路径示例对应：
-
-```text
-Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision
-```
-
-下面示例使用 PowerShell。请按你的实际路径设置变量：
+示例路径如下，请按你的实际机器修改：
 
 ```powershell
 $RtAkTools = "C:\RT-AK\RT-AK\rt_ai_tools"
@@ -107,15 +55,20 @@ $Bsp = "C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision"
 $DeepCraftDir = "$Bsp\libraries\Common\deepcraft_ai\model"
 ```
 
-变量含义：
+路径含义：
 
 ```text
-$RtAkTools    RT-AK 主仓库中的 rt_ai_tools 目录，目录下应有 aitools.py
-$Bsp          已导入或已解压的 Edgi Talk BSP 工程目录，目录下应有 SConstruct
-$DeepCraftDir BSP 中 DeepCraft / Imagimob 生成模型目录，目录下应有 model.c / model.h
+$RtAkTools
+    RT-AK 主仓库里的 rt_ai_tools 目录，下面应有 aitools.py。
+
+$Bsp
+    Edgi Talk BSP 工程目录，下面应有 SConstruct、Kconfig、rtconfig.h。
+
+$DeepCraftDir
+    DeepCraft / Imagimob 生成模型目录，下面应有 model.c、model.h。
 ```
 
-先做路径检查，确认后面的命令不用再猜路径：
+先检查路径：
 
 ```powershell
 Test-Path "$RtAkTools\aitools.py"
@@ -126,24 +79,11 @@ Test-Path "$DeepCraftDir\model.c"
 Test-Path "$DeepCraftDir\model.h"
 ```
 
-以上命令应全部返回 `True`。如果 `$RtAkTools\aitools.py` 返回 `False`，说明 `$RtAkTools` 填到了 RT-AK 根目录而不是 `rt_ai_tools` 子目录。
+以上命令都应返回 `True`。
 
-BSP 中至少需要存在：
+## 3. 在 RT-AK 中注册本插件
 
-```text
-SConstruct
-Kconfig
-rtconfig.h
-applications/
-libraries/Common/deepcraft_ai/model/model.c
-libraries/Common/deepcraft_ai/model/model.h
-```
-
-`rtconfig.h` 必须已是一个可工作的基础 BSP 配置。当前插件的 auto 配置模式不是从空工程创建 BSP 配置，而是在已有 BSP 配置上追加 Edgi RT-AK 配置。
-
-## 4. 在 RT-AK 中注册插件（个人仓库临时方案）
-
-修改 RT-AK 主仓库的：
+编辑 RT-AK 主仓库中的：
 
 ```text
 RT-AK/rt_ai_tools/platforms/support_platforms.json
@@ -159,59 +99,7 @@ RT-AK/rt_ai_tools/platforms/support_platforms.json
 
 注册后，RT-AK 使用 `--platform edgi` 时会从 GitHub 下载本插件。
 
-可以先只验证下载：
-
-```powershell
-cd $RtAkTools
-
-python aitools.py `
-  --platform edgi `
-  --pull_repo_only True
-```
-
-## 5. dry-run 检查
-
-dry-run 只检查 BSP 和 DeepCraft 模型产物，不导出文件：
-
-```powershell
-cd $RtAkTools
-
-python aitools.py `
-  --log .\edgi_dryrun.log `
-  --project $Bsp `
-  --platform edgi `
-  --model_name object_detect `
-  --deepcraft_dir $DeepCraftDir `
-  --dry_run
-```
-
-期望结果：
-
-```text
-BSP check   : OK
-Model check : OK
-```
-
-dry-run 会检查：
-
-```text
-BSP 路径
-SConstruct
-rtconfig.h
-applications/
-model.c
-model.h
-IMAI_init
-IMAI_compute
-IMAI_finalize
-IMAI_api
-```
-
-### 5.1 推荐执行顺序示例
-
-第一次验证 GitHub 下载链路时，建议按下面顺序执行。
-
-可选：删除 RT-AK 本地缓存插件，强制下一次从 GitHub 重新下载：
+如果要强制验证 GitHub 下载链路，可以先删除本地缓存插件：
 
 ```powershell
 if (Test-Path "$RtAkTools\platforms\plugin_edgi") {
@@ -229,7 +117,17 @@ python aitools.py `
   --pull_repo_only True
 ```
 
-执行 dry-run，确认 BSP 和 DeepCraft 模型产物可用：
+检查是否下载成功：
+
+```powershell
+Test-Path "$RtAkTools\platforms\plugin_edgi\plugin_edgi.py"
+Test-Path "$RtAkTools\platforms\plugin_edgi\Kconfig"
+Test-Path "$RtAkTools\platforms\plugin_edgi\examples\rt_ai_edgi_uvc_runner_app.c"
+```
+
+## 4. dry-run 检查
+
+dry-run 只检查 BSP 和 DeepCraft 模型产物，不改 BSP 文件：
 
 ```powershell
 cd $RtAkTools
@@ -243,13 +141,45 @@ python aitools.py `
   --dry_run
 ```
 
-检查 dry-run 日志中的关键结果：
+检查日志：
 
 ```powershell
-Select-String -Path ".\edgi_dryrun.log" -Pattern "BSP check", "Model check", "ERROR", "Traceback"
+Select-String -Path ".\edgi_dryrun.log" -Pattern `
+  "BSP check", `
+  "Model check", `
+  "FAILED", `
+  "ERROR", `
+  "Traceback"
 ```
 
-auto 模式生成、导出并自动写入 BSP 配置：
+期望看到：
+
+```text
+BSP check     : OK
+Model check   : OK
+```
+
+dry-run 会检查的关键内容：
+
+```text
+BSP:
+    SConstruct
+    Kconfig
+    rtconfig.h
+    applications/
+
+DeepCraft model:
+    model.c
+    model.h
+    IMAI_init
+    IMAI_compute
+    IMAI_finalize
+    IMAI_api
+```
+
+## 5. 一键生成、导出、配置
+
+推荐使用 `auto` 模式。它会生成 RT-AK 模型文件，导出插件文件到 BSP，并通过 Kconfig 流程更新 `.config` 和 `rtconfig.h`。
 
 ```powershell
 cd $RtAkTools
@@ -266,13 +196,56 @@ python aitools.py `
   --config_mode auto
 ```
 
-检查 auto 导出日志：
+`auto` 模式会启用这些配置：
 
-```powershell
-Select-String -Path ".\edgi_export_auto.log" -Pattern "Configuration mode", "auto", "OK", "ERROR", "rollback", "rtconfig.h"
+```text
+CONFIG_RT_AI_USE_EDGI=y
+CONFIG_RT_AI_USE_M55_ETHOSU=y
+CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
+CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y
+CONFIG_RT_AI_EDGI_RUNNER=y
+CONFIG_RT_AI_EDGI_RUNNER_DEMO=y
+CONFIG_RT_AI_EDGI_UVC_RUNNER_DEMO=y
 ```
 
-检查 BSP 根 `Kconfig` 中 Edgi source 只出现一次：
+导出到 BSP 的主要文件：
+
+```text
+applications/rt_ai_edgi/
+    Kconfig
+    SConscript
+    rt_ai_edgi_active_model.h
+    rt_ai_edgi_minimal_demo.c
+    rt_ai_edgi_runner.c
+    rt_ai_edgi_runner.h
+    rt_ai_edgi_runner_demo.c
+    generated/object_detect/rt_ai_object_detect_model.c
+    generated/object_detect/rt_ai_object_detect_model.h
+    generated/object_detect/rt_ai_edgi_demo_config.h
+
+applications/uvc_ai_app.c
+    UVC + LCD + RT-AK runner 推理示例
+
+rt_ai_lib/backend_plugin_edgi/
+    backend_edgi.c
+    backend_edgi.h
+    ethosu_rtos_rtthread.c
+    SConscript
+```
+
+导出后检查日志：
+
+```powershell
+Select-String -Path ".\edgi_export_auto.log" -Pattern `
+  "Edgi RT-AK model skeleton generated", `
+  "Edgi RT-AK files exported", `
+  "Configuration mode : auto", `
+  "rtconfig.h           : regenerated", `
+  "ERROR", `
+  "Traceback"
+```
+
+检查 BSP 根 Kconfig 中只出现一次 Edgi source：
 
 ```powershell
 (Select-String -Path "$Bsp\Kconfig" -Pattern "applications/rt_ai_edgi/Kconfig").Count
@@ -291,7 +264,10 @@ Select-String -Path "$Bsp\.config" -Pattern `
   "CONFIG_RT_AI_USE_EDGI=y", `
   "CONFIG_RT_AI_USE_M55_ETHOSU=y", `
   "CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y", `
-  "CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y"
+  "CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y", `
+  "CONFIG_RT_AI_EDGI_RUNNER=y", `
+  "CONFIG_RT_AI_EDGI_RUNNER_DEMO=y", `
+  "CONFIG_RT_AI_EDGI_UVC_RUNNER_DEMO=y"
 ```
 
 检查 `rtconfig.h`：
@@ -301,34 +277,29 @@ Select-String -Path "$Bsp\rtconfig.h" -Pattern `
   "#define RT_AI_USE_EDGI", `
   "#define RT_AI_USE_M55_ETHOSU", `
   "#define RT_AI_EDGI_MODEL_OBJECT_DETECT", `
-  "#define RT_AI_EDGI_MINIMAL_DEMO"
+  "#define RT_AI_EDGI_MINIMAL_DEMO", `
+  "#define RT_AI_EDGI_RUNNER", `
+  "#define RT_AI_EDGI_RUNNER_DEMO", `
+  "#define RT_AI_EDGI_UVC_RUNNER_DEMO"
 ```
 
-检查导出的插件文件：
+检查文件是否导出：
 
 ```powershell
 Test-Path "$Bsp\applications\rt_ai_edgi\SConscript"
 Test-Path "$Bsp\applications\rt_ai_edgi\Kconfig"
+Test-Path "$Bsp\applications\rt_ai_edgi\rt_ai_edgi_runner.c"
+Test-Path "$Bsp\applications\rt_ai_edgi\rt_ai_edgi_runner_demo.c"
 Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.c"
-Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.h"
-Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_edgi_demo_config.h"
+Test-Path "$Bsp\applications\uvc_ai_app.c"
 Test-Path "$Bsp\rt_ai_lib\backend_plugin_edgi\backend_edgi.c"
 ```
 
 以上命令应全部返回 `True`。
 
-## 6. 生成和导出
+## 6. manual 模式
 
-插件提供两种配置模式：
-
-```text
-manual：默认模式，只导出文件并接入 Kconfig，不自动修改 .config / rtconfig.h
-auto  ：导出后自动合并 .config，并通过 RT-Thread 配置系统重新生成 rtconfig.h
-```
-
-### 6.1 manual 模式
-
-manual 是默认模式，适合希望通过 menuconfig 手动开关插件的场景：
+如果你只想导出文件，然后自己通过 menuconfig 打开配置，可以使用 `manual` 模式：
 
 ```powershell
 cd $RtAkTools
@@ -345,17 +316,18 @@ python aitools.py `
   --config_mode manual
 ```
 
-manual 模式会完成：
+manual 模式只做：
 
 ```text
-生成 rt_ai_object_detect_model.c/h
-生成 rt_ai_edgi_demo_config.h
-导出 applications/rt_ai_edgi
-导出 rt_ai_lib/backend_plugin_edgi
+生成 generated/object_detect/
+导出 applications/rt_ai_edgi/
+导出 rt_ai_lib/backend_plugin_edgi/
+导出 applications/uvc_ai_app.c
 向 BSP 根 Kconfig 幂等追加 source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"
+向 applications/SConscript 幂等追加 RT-AK runner include path
 ```
 
-manual 模式不会修改：
+manual 模式不会自动修改：
 
 ```text
 .config
@@ -363,40 +335,270 @@ manual 模式不会修改：
 rtconfig.h
 ```
 
-导出后进入 BSP 配置界面启用插件：
+之后需要进入 BSP 配置界面手动打开：
 
 ```powershell
 cd $Bsp
 scons --menuconfig
 ```
 
-在部分 Windows RT-Thread Studio BSP 中，命令入口可能是：
+如果当前 RT-Thread Studio BSP 使用 pyconfig：
 
 ```powershell
 scons --pyconfig
 ```
 
-保存配置后，确认 `.config` 中存在：
+## 7. 编译 BSP
+
+设置工具链路径：
+
+```powershell
+$env:RTT_EXEC_PATH = "C:\RT-ThreadStudio\platform\env_released\env\tools\gnu_gcc\arm_gcc\mingw\bin"
+$env:PKGS_ROOT = "C:\RT-ThreadStudio\platform\env_released\env\packages"
+```
+
+编译：
+
+```powershell
+cd $Bsp
+scons -c
+scons -j6
+```
+
+成功后应生成：
 
 ```text
-CONFIG_RT_AI_USE_EDGI=y
-CONFIG_RT_AI_USE_M55_ETHOSU=y
-CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
-CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y
+rt-thread.elf
+Debug/rtthread.hex
 ```
 
-确认 `rtconfig.h` 中存在：
+编译日志中应能看到这些文件参与编译：
 
-```c
-#define RT_AI_USE_EDGI
-#define RT_AI_USE_M55_ETHOSU
-#define RT_AI_EDGI_MODEL_OBJECT_DETECT
-#define RT_AI_EDGI_MINIMAL_DEMO
+```text
+rt_ai_lib\backend_plugin_edgi\backend_edgi.o
+rt_ai_lib\rt_ai.o
+rt_ai_lib\rt_ai_core.o
+rt_ai_lib\rt_ai_runtime.o
+applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.o
+applications\rt_ai_edgi\rt_ai_edgi_minimal_demo.o
+applications\rt_ai_edgi\rt_ai_edgi_runner_demo.o
+applications\uvc_ai_app.o
 ```
 
-### 6.2 auto 模式
+如果没有这些编译项，先检查 `rtconfig.h` 中是否有 `RT_AI_USE_EDGI` 和模型选择宏。
 
-auto 模式适合一条 RT-AK 命令完成导出和配置落地：
+## 8. 烧录 hex
+
+编译产物通常在：
+
+```text
+$Bsp\Debug\rtthread.hex
+```
+
+烧录方式按你的 Edgi Talk BSP / RT-Thread Studio 工程流程执行。本文档只描述插件导出、编译和板端命令验证。
+
+## 9. 板端验证
+
+上电后进入 MSH，先看命令：
+
+```text
+msh />help
+```
+
+应能看到：
+
+```text
+rt_ai_edgi_minimal_demo - run Edgi model through standard RT-AK API
+rt_ai_edgi_runner_demo  - run Edgi model through config runner
+usbh_uvc_start          - Start UVC stream: usbh_uvc_start [fmt] [w] [h]
+usbh_uvc_stop           - Stop UVC stream
+```
+
+### 9.1 标准 RT-AK API 验证
+
+运行：
+
+```text
+msh />rt_ai_edgi_minimal_demo
+```
+
+它验证：
+
+```text
+rt_ai_find("object_detect")
+rt_ai_init()
+rt_ai_input()
+rt_ai_run()
+rt_ai_output()
+backend_edgi -> IMAI_compute()
+```
+
+期望日志：
+
+```text
+RT-AK Edgi minimal demo scheduled
+RT-AK Edgi standard API demo start
+rt_ai_find success: object_detect
+rt_ai_init success
+rt_ai_input success
+rt_ai_run success
+rt_ai_output success
+RT-AK Edgi standard API demo end
+```
+
+这个 demo 使用固定 pattern 输入，不拉起摄像头，也不做 LCD overlay。它只证明 RT-AK 标准 API 到 Edgi backend 的模型调用链能跑通。
+
+### 9.2 配置化 runner 验证
+
+运行：
+
+```text
+msh />rt_ai_edgi_runner_demo
+```
+
+它验证：
+
+```text
+rt_ai_edgi_runner_default_config()
+rt_ai_edgi_runner_init()
+rt_ai_edgi_runner_input()
+rt_ai_edgi_runner_run()
+rt_ai_edgi_runner_output()
+rt_ai_edgi_runner_deinit()
+```
+
+期望日志：
+
+```text
+RT-AK Edgi runner demo scheduled
+RT-AK Edgi config runner start
+model      : object_detect
+input      : 307200 bytes, uint8
+output     : 160 bytes, float32
+preprocess : yuyv_to_rgb888_320x320
+postprocess: object_detect_rps
+runner out[000]: ...
+RT-AK Edgi config runner end
+```
+
+这个 demo 仍然不拉起摄像头。它证明“模型差异通过配置表达，runner 固定调用 RT-AK API”的路径能工作。
+
+### 9.3 UVC + LCD 实时推理验证
+
+运行：
+
+```text
+msh />usbh_uvc_start 0 320 240
+```
+
+它验证完整真实链路：
+
+```text
+UVC 摄像头
+YUYV frame
+rt_ai_input()
+rt_ai_run()
+rt_ai_output()
+object_detect 后处理
+LCD overlay 出框
+```
+
+期望日志包含：
+
+```text
+RT-AK UVC runner ready
+RT-AK UVC AI app started (async)
+RT-AK UVC inference ... det=...
+RT-AK UVC #0 ...
+```
+
+LCD 应实时显示摄像头画面，并在 Rock / Paper / Scissors 目标上实时出框。
+
+停止：
+
+```text
+msh />usbh_uvc_stop
+```
+
+建议做一次生命周期回归：
+
+```text
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
+```
+
+## 10. 常见问题
+
+### 10.1 为什么是 `usbh_uvc_start`，不是直接 `rt_ai_run`
+
+`rt_ai_run` 只负责模型推理，不负责摄像头和 LCD。
+
+真实视频推理需要先拉起 UVC 数据流，因此入口仍然是：
+
+```text
+usbh_uvc_start 0 320 240
+```
+
+但在当前版本中，每帧图像进入应用层后会走：
+
+```text
+rt_ai_input()
+rt_ai_run()
+rt_ai_output()
+```
+
+也就是说，摄像头入口保留，推理路径已经接入 RT-AK。
+
+### 10.2 `rt_ai_edgi_runner_demo` 跑通了什么
+
+它跑通的是配置化 runner 的 RT-AK 调用链，不是摄像头链路：
+
+```text
+配置
+-> rt_ai_find
+-> rt_ai_init
+-> rt_ai_input
+-> rt_ai_run
+-> rt_ai_output
+-> rt_ai_deinit
+```
+
+它的输入是固定 pattern，用于验证 runner 和 backend，不用于判断识别效果。
+
+### 10.3 `rt_ai_edgi_rtak_api_demo: command not found`
+
+当前命令名不是 `rt_ai_edgi_rtak_api_demo`。
+
+请使用：
+
+```text
+rt_ai_edgi_minimal_demo
+rt_ai_edgi_runner_demo
+```
+
+以 `help` 中实际列出的命令为准。
+
+### 10.4 `thread:tshell stack overflow`
+
+旧版本曾直接在 shell 线程里跑推理，容易压爆 tshell 栈。当前版本的 `rt_ai_edgi_minimal_demo` 和 `rt_ai_edgi_runner_demo` 都会调度到独立 worker thread 中执行。
+
+如果仍看到该问题，请确认固件来自最新 GitHub 插件重新导出并编译，而不是旧 BSP 产物。
+
+### 10.5 `RT-AK Edgi: no model selected`
+
+说明插件已启用，但模型选择宏没有进入 `rtconfig.h`。
+
+检查：
+
+```powershell
+Select-String -Path "$Bsp\rtconfig.h" -Pattern `
+  "RT_AI_USE_EDGI", `
+  "RT_AI_EDGI_MODEL_OBJECT_DETECT"
+```
+
+如果缺失，重新执行：
 
 ```powershell
 cd $RtAkTools
@@ -413,61 +615,44 @@ python aitools.py `
   --config_mode auto
 ```
 
-auto 模式的配置来源是：
+### 10.6 auto 模式报 packages/Kconfig 找不到
 
-```text
-configs/edgi_default.config
-```
-
-默认内容：
-
-```text
-CONFIG_RT_AI_USE_EDGI=y
-CONFIG_RT_AI_USE_M55_ETHOSU=y
-CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
-CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y
-```
-
-auto 模式流程：
-
-```text
-检查 BSP SConstruct / Kconfig / rtconfig.h
-检查 applications/rt_ai_edgi/Kconfig 已导出
-检查 BSP 根 Kconfig 中 Edgi source 只有一次
-必要时执行 scons --genconfig 生成 .config
-合并 configs/edgi_default.config 到 .config
-调用 BSP 本地 RT-Thread 非交互配置命令
-重新生成 rtconfig.h
-校验 .config 和 rtconfig.h 中的四个目标宏
-```
-
-在本地 RT-Thread 工具支持 `--defconfig` 时优先使用该命令；在 RT-Thread Studio Windows BSP 中通常使用 `--pyconfig-silent`。插件不会直接向 `rtconfig.h` 追加 `#define`。
-
-auto 模式修改配置文件前会临时备份：
-
-```text
-.config
-.config.old
-rtconfig.h
-```
-
-如果配置生成或校验失败，会恢复原文件，不会留下长期 `.bak` / `.tmp` 文件。导出的插件源码不会回滚。
-
-## 7. 编译 BSP
-
-设置工具链路径：
-
-```powershell
-$env:RTT_EXEC_PATH = "C:\RT-ThreadStudio\platform\env_released\env\tools\gnu_gcc\arm_gcc\mingw\bin"
-```
-
-如果 BSP 的 Kconfig 依赖 RT-Thread Studio 自带 packages 索引，也可以设置：
+设置 RT-Thread Studio packages 路径：
 
 ```powershell
 $env:PKGS_ROOT = "C:\RT-ThreadStudio\platform\env_released\env\packages"
 ```
 
-编译：
+然后重新执行 auto 导出命令。
+
+## 11. 重新验证 GitHub 最新版本
+
+如果你要确认 RT-AK 一键导出确实使用 GitHub 最新插件，而不是本地旧缓存，按下面顺序执行：
+
+```powershell
+if (Test-Path "$RtAkTools\platforms\plugin_edgi") {
+  Remove-Item -Recurse -Force "$RtAkTools\platforms\plugin_edgi"
+}
+
+cd $RtAkTools
+
+python aitools.py `
+  --platform edgi `
+  --pull_repo_only True
+
+python aitools.py `
+  --log .\edgi_export_auto.log `
+  --project $Bsp `
+  --platform edgi `
+  --model_name object_detect `
+  --deepcraft_dir $DeepCraftDir `
+  --ethosu `
+  --generate `
+  --export `
+  --config_mode auto
+```
+
+然后重新编译：
 
 ```powershell
 cd $Bsp
@@ -475,252 +660,13 @@ scons -c
 scons -j6
 ```
 
-成功时应生成：
-
-```text
-rt-thread.elf
-Debug/rtthread.hex
-```
-
-编译日志中应能看到插件源码参与编译：
-
-```text
-CC build\rt_ai_lib\backend_plugin_edgi\backend_edgi.o
-CC build\rt_ai_lib\rt_ai.o
-CC build\rt_ai_lib\rt_ai_core.o
-CC build\rt_ai_lib\rt_ai_runtime.o
-CC applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.o
-CC applications\rt_ai_edgi\rt_ai_edgi_minimal_demo.o
-```
-
-如果没有这些编译项，说明 `RT_AI_USE_EDGI` 或模型选择宏没有进入 `rtconfig.h`，需要回到第 6 节检查配置。
-
-## 8. 板端验证
-
-烧录由 BSP / RT-Thread Studio 流程完成。启动后在 MSH 中检查命令：
-
-```text
-msh />help
-```
-
-应看到：
-
-```text
-rt_ai_edgi_minimal_demo - run Edgi model through standard RT-AK API
-usbh_uvc_start
-usbh_uvc_stop
-```
-
-### 8.1 minimal demo
-
-运行：
-
-```text
-msh />rt_ai_edgi_minimal_demo
-```
-
-期望日志：
-
-```text
-RT-AK Edgi minimal demo scheduled
-RT-AK Edgi standard API demo start
-rt_ai_find success: object_detect
-rt_ai_init success
-rt_ai_input success
-rt_ai_run success
-rt_ai_output success
-RT-AK Edgi standard API demo end
-```
-
-该 demo 使用固定 pattern 输入，只用于验证 RT-AK API、backend、input/output buffer 和 `IMAI_compute` 调用链路，不用于判断模型语义。
-
-### 8.2 UVC 实时推理
-
-启动 320x240 YUYV 摄像头输入：
-
-```text
-msh />usbh_uvc_start 0 320 240
-```
-
-期望日志摘要：
-
-```text
-[I/uvc_app] UVC start: 320x240 format=yuyv
-[I/uvc_disp] LCD: 512x800 16bpp
-[I/uvc_ai] AI clocks cpu=399MHz npu=399MHz cache=2
-[I/uvc_ai] AI model initialized
-[I/uvc_ai_app] AI app started (async)
-[I/uvc_ai] AI inference ... det=...
-[I/uvc_ai] AI #0 Rock / Paper / Scissors ... bbox=[...]
-```
-
-LCD 应实时显示 Rock / Paper / Scissors 检测框。
-
-停止：
-
-```text
-msh />usbh_uvc_stop
-```
-
-期望看到：
-
-```text
-[I/uvc_ai] AI model deinitialized
-[I/uvc_ai_app] AI app stopped
-[I/uvc_app] UVC stopped
-```
-
-建议做一次生命周期回归：
-
-```text
-usbh_uvc_start 0 320 240
-usbh_uvc_stop
-usbh_uvc_start 0 320 240
-usbh_uvc_stop
-```
-
-当前已验证 stop 后再次 start 可以恢复 AI 推理和 LCD overlay。stop 过程中如果出现 `uvc abort1` / `uvc abort2`，但仍然完成 AI deinit、UVC stopped，并且后续能再次 start，按非致命 stop 日志处理。
-
-## 9. 关键实现说明
-
-### 9.1 模型注册
-
-生成文件：
-
-```text
-generated/object_detect/rt_ai_object_detect_model.c
-generated/object_detect/rt_ai_object_detect_model.h
-```
-
-注册路径：
-
-```text
-INIT_APP_EXPORT(rt_ai_object_detect_model_register)
--> rt_ai_register()
--> backend_edgi()
--> object_detect 注册到 RT-AK core
-```
-
-生成文件不再提供 `rt_ai_object_detect_model_*()` 兼容 wrapper。应用侧应统一使用标准 RT-AK API。
-
-### 9.2 backend
-
-backend 关键映射：
-
-```text
-backend_edgi_init()
--> IMAI_init()
-
-backend_edgi_run(input, output)
--> IMAI_compute(input, output)
-
-backend_edgi_deinit()
--> IMAI_finalize()
-```
-
-backend 不处理：
-
-```text
-UVC 采集
-YUYV -> RGB888
-bbox 解析
-LCD 绘制
-MSH 命令调度
-```
-
-这些逻辑保留在 BSP application / demo 层。
-
-### 9.3 Kconfig
-
-插件 Kconfig 顶层开关保持默认关闭：
-
-```kconfig
-menuconfig RT_AI_USE_EDGI
-    bool "Enable RT-AK Edgi backend"
-    default n
-```
-
-插件启用后，当前默认启用：
-
-```text
-RT_AI_USE_M55_ETHOSU
-RT_AI_EDGI_MODEL_OBJECT_DETECT
-RT_AI_EDGI_MINIMAL_DEMO
-```
-
-`applications/rt_ai_edgi/SConscript` 只在 `RT_AI_USE_EDGI` 启用时要求选择模型。插件关闭时不会报 `RT-AK Edgi: no model selected`。
-
-## 10. 常见问题
-
-### 命令行提示找不到 `rt_ai_edgi_rtak_api_demo`
-
-当前命令名是：
+板端再验证：
 
 ```text
 rt_ai_edgi_minimal_demo
+rt_ai_edgi_runner_demo
+usbh_uvc_start 0 320 240
+usbh_uvc_stop
 ```
 
-请用 `help` 查看 MSH 当前固件实际导出的命令。
-
-### `RT-AK Edgi: no model selected`
-
-说明插件已启用，但模型选择宏没有进入 `rtconfig.h`。检查：
-
-```text
-CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
-#define RT_AI_EDGI_MODEL_OBJECT_DETECT
-```
-
-如果使用 auto 模式，确认 `--config_mode auto` 执行成功且没有回滚。
-
-### 编译日志没有插件源码
-
-检查 `rtconfig.h`：
-
-```c
-#define RT_AI_USE_EDGI
-#define RT_AI_EDGI_MODEL_OBJECT_DETECT
-```
-
-如果缺失，SCons `GetDepend()` 不会让插件源码参与编译。
-
-### `scons --pyconfig-silent` 报 packages/Kconfig 不存在
-
-设置 RT-Thread Studio packages 索引：
-
-```powershell
-$env:PKGS_ROOT = "C:\RT-ThreadStudio\platform\env_released\env\packages"
-```
-
-auto 模式也会优先尝试使用该位置。
-
-### `thread:tshell stack overflow`
-
-旧版本 minimal demo 曾直接在 shell 线程执行推理。当前版本已改为 MSH 命令只调度 worker thread，推理在独立 `edgi_demo` 线程中运行。
-
-## 11. 当前验证状态
-
-当前本地已验证：
-
-```text
-GitHub 下载插件链路可生成和导出
-manual 配置模式可导出 Kconfig
-auto 配置模式可更新 .config 并生成 rtconfig.h
-auto 重复执行不会重复追加 symbol
-SCons 可真实编译 RT-AK core、backend、generated model 和 minimal demo
-minimal demo 可通过标准 RT-AK API 调用 object_detect
-UVC stop/start 生命周期可恢复
-LCD 可实时显示检测框
-```
-
-如果本地修改尚未 commit / push，则 GitHub 一键下载链路仍会使用远端旧版本。完成本地验证后，应再执行：
-
-```text
-审查 git diff
-commit
-push origin main
-删除全新 RT-AK 的 platforms/plugin_edgi
-重新通过 GitHub clone 验证 --config_mode auto
-重新编译 BSP
-重新板端验证 minimal / UVC / LCD / stop-start
-```
+如果 `usbh_uvc_start 0 320 240` 能拉起摄像头、LCD 实时显示并出现 `RT-AK UVC inference` 日志，就说明 GitHub 最新插件版本已经打通“RT-AK API + UVC 实时出框”闭环。
