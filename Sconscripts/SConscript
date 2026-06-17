@@ -38,6 +38,16 @@ if GetDepend(['RT_AI_USE_EDGI']):
             cwd + '/rt_ai_edgi_minimal_demo.c',
         ]
 
+    if GetDepend(['RT_AI_EDGI_RUNNER']):
+        src += [
+            cwd + '/rt_ai_edgi_runner.c',
+        ]
+
+    if GetDepend(['RT_AI_EDGI_RUNNER_DEMO']):
+        src += [
+            cwd + '/rt_ai_edgi_runner_demo.c',
+        ]
+
 group = DefineGroup(
     'RT-AK-Edgi',
     src,

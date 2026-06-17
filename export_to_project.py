@@ -74,6 +74,9 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     source_generated_dir = repo_root / output_dir
     source_sconscript = repo_root / "Sconscripts" / "SConscript"
     source_demo = repo_root / "examples" / "rt_ai_edgi_minimal_demo.c"
+    source_runner_h = repo_root / "examples" / "rt_ai_edgi_runner.h"
+    source_runner = repo_root / "examples" / "rt_ai_edgi_runner.c"
+    source_runner_demo = repo_root / "examples" / "rt_ai_edgi_runner_demo.c"
     source_active_model = repo_root / "templates" / "rt_ai_edgi_active_model.h"
     source_kconfig = repo_root / "Kconfig"
 
@@ -84,6 +87,9 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     _copy_dir(source_generated_dir, app_target_dir / "generated")
     _copy_file(source_sconscript, app_target_dir / "SConscript")
     _copy_file(source_demo, app_target_dir / "rt_ai_edgi_minimal_demo.c")
+    _copy_file(source_runner_h, app_target_dir / "rt_ai_edgi_runner.h")
+    _copy_file(source_runner, app_target_dir / "rt_ai_edgi_runner.c")
+    _copy_file(source_runner_demo, app_target_dir / "rt_ai_edgi_runner_demo.c")
     _copy_file(source_active_model, app_target_dir / "rt_ai_edgi_active_model.h")
     _copy_file(source_kconfig, app_target_dir / "Kconfig")
     ensure_root_kconfig_source(project_path)

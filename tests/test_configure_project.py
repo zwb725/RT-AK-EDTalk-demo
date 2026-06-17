@@ -19,6 +19,8 @@ FRAGMENT_TEXT = """CONFIG_RT_AI_USE_EDGI=y
 CONFIG_RT_AI_USE_M55_ETHOSU=y
 CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
 CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y
+CONFIG_RT_AI_EDGI_RUNNER=y
+CONFIG_RT_AI_EDGI_RUNNER_DEMO=y
 """
 
 
@@ -27,6 +29,8 @@ MANAGED_CONFIGS = [
     "CONFIG_RT_AI_USE_M55_ETHOSU",
     "CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT",
     "CONFIG_RT_AI_EDGI_MINIMAL_DEMO",
+    "CONFIG_RT_AI_EDGI_RUNNER",
+    "CONFIG_RT_AI_EDGI_RUNNER_DEMO",
 ]
 
 
@@ -68,6 +72,15 @@ config RT_AI_USE_M55_ETHOSU
 
 config RT_AI_EDGI_MINIMAL_DEMO
     bool "Enable Edgi RT-AK minimal MSH demo"
+    default y
+
+config RT_AI_EDGI_RUNNER
+    bool "Enable Edgi RT-AK config runner API"
+    default y
+
+config RT_AI_EDGI_RUNNER_DEMO
+    bool "Enable Edgi RT-AK config runner demo"
+    depends on RT_AI_EDGI_RUNNER
     default y
 
 endif

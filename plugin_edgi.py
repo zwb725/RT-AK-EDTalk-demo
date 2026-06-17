@@ -152,6 +152,8 @@ def export_generated_files(opt):
     print("exported   : applications/rt_ai_edgi/Kconfig")
     print("exported   : applications/rt_ai_edgi/rt_ai_edgi_active_model.h")
     print("exported   : applications/rt_ai_edgi/rt_ai_edgi_minimal_demo.c")
+    print("exported   : applications/rt_ai_edgi/rt_ai_edgi_runner.c/h")
+    print("exported   : applications/rt_ai_edgi/rt_ai_edgi_runner_demo.c")
     print("exported   : rt_ai_lib/backend_plugin_edgi/")
     print("-" * 70)
     print("注意：已幂等检查 BSP 根 Kconfig source：")

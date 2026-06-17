@@ -42,6 +42,24 @@ config RT_AI_EDGI_MINIMAL_DEMO
     help
         Build rt_ai_edgi_minimal_demo command for board-side validation.
 
+config RT_AI_EDGI_RUNNER
+    bool "Enable Edgi RT-AK config runner API"
+    default y
+    help
+        Build the reusable config-driven runner API. BSP application code
+        can feed preprocessed frames into this runner without depending on
+        model-specific RT-AK calls.
+
+config RT_AI_EDGI_RUNNER_DEMO
+    bool "Enable Edgi RT-AK config runner demo"
+    depends on RT_AI_EDGI_RUNNER
+    default y
+    help
+        Build rt_ai_edgi_runner_demo command. This command uses the
+        generated runner configuration to call rt_ai_find, rt_ai_init,
+        rt_ai_input, rt_ai_run and rt_ai_output through a reusable runner.
+        UVC capture and LCD overlay remain in BSP application code.
+
 endif
 
 endmenu
