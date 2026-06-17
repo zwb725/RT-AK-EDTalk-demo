@@ -14,8 +14,7 @@
 #define RT_AI_EDGI_RUNNER_DEMO_THREAD_PRIORITY    (20)
 #define RT_AI_EDGI_RUNNER_DEMO_THREAD_TICK        (10)
 
-static rt_uint8_t g_rt_ai_edgi_runner_demo_stack[RT_AI_EDGI_RUNNER_DEMO_THREAD_STACK_SIZE];
-static struct rt_thread g_rt_ai_edgi_runner_demo_thread;
+static rt_thread_t g_rt_ai_edgi_runner_demo_thread = RT_NULL;
 static struct rt_semaphore g_rt_ai_edgi_runner_demo_sem;
 static rt_bool_t g_rt_ai_edgi_runner_demo_thread_started = RT_FALSE;
 static rt_bool_t g_rt_ai_edgi_runner_demo_running = RT_FALSE;
@@ -160,24 +159,24 @@ static rt_err_t rt_ai_edgi_runner_demo_ensure_thread(void)
         return ret;
     }
 
-    ret = rt_thread_init(&g_rt_ai_edgi_runner_demo_thread,
-                         "edgi_run",
+    g_rt_ai_edgi_runner_demo_thread =
+        rt_thread_create("edgi_run",
                          rt_ai_edgi_runner_demo_thread_entry,
                          RT_NULL,
-                         g_rt_ai_edgi_runner_demo_stack,
-                         sizeof(g_rt_ai_edgi_runner_demo_stack),
+                         RT_AI_EDGI_RUNNER_DEMO_THREAD_STACK_SIZE,
                          RT_AI_EDGI_RUNNER_DEMO_THREAD_PRIORITY,
                          RT_AI_EDGI_RUNNER_DEMO_THREAD_TICK);
-    if (ret != RT_EOK)
+    if (g_rt_ai_edgi_runner_demo_thread == RT_NULL)
     {
         rt_sem_detach(&g_rt_ai_edgi_runner_demo_sem);
-        return ret;
+        return -RT_ERROR;
     }
 
-    ret = rt_thread_startup(&g_rt_ai_edgi_runner_demo_thread);
+    ret = rt_thread_startup(g_rt_ai_edgi_runner_demo_thread);
     if (ret != RT_EOK)
     {
-        rt_thread_detach(&g_rt_ai_edgi_runner_demo_thread);
+        rt_thread_delete(g_rt_ai_edgi_runner_demo_thread);
+        g_rt_ai_edgi_runner_demo_thread = RT_NULL;
         rt_sem_detach(&g_rt_ai_edgi_runner_demo_sem);
         return ret;
     }
