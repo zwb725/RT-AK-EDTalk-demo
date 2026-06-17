@@ -107,6 +107,27 @@ $Bsp = "C:\RT-ThreadStudio\workspace\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision"
 $DeepCraftDir = "$Bsp\libraries\Common\deepcraft_ai\model"
 ```
 
+变量含义：
+
+```text
+$RtAkTools    RT-AK 主仓库中的 rt_ai_tools 目录，目录下应有 aitools.py
+$Bsp          已导入或已解压的 Edgi Talk BSP 工程目录，目录下应有 SConstruct
+$DeepCraftDir BSP 中 DeepCraft / Imagimob 生成模型目录，目录下应有 model.c / model.h
+```
+
+先做路径检查，确认后面的命令不用再猜路径：
+
+```powershell
+Test-Path "$RtAkTools\aitools.py"
+Test-Path "$Bsp\SConstruct"
+Test-Path "$Bsp\Kconfig"
+Test-Path "$Bsp\rtconfig.h"
+Test-Path "$DeepCraftDir\model.c"
+Test-Path "$DeepCraftDir\model.h"
+```
+
+以上命令应全部返回 `True`。如果 `$RtAkTools\aitools.py` 返回 `False`，说明 `$RtAkTools` 填到了 RT-AK 根目录而不是 `rt_ai_tools` 子目录。
+
 BSP 中至少需要存在：
 
 ```text
@@ -185,6 +206,116 @@ IMAI_compute
 IMAI_finalize
 IMAI_api
 ```
+
+### 5.1 推荐执行顺序示例
+
+第一次验证 GitHub 下载链路时，建议按下面顺序执行。
+
+可选：删除 RT-AK 本地缓存插件，强制下一次从 GitHub 重新下载：
+
+```powershell
+if (Test-Path "$RtAkTools\platforms\plugin_edgi") {
+  Remove-Item -Recurse -Force "$RtAkTools\platforms\plugin_edgi"
+}
+```
+
+只拉取插件，不生成、不导出：
+
+```powershell
+cd $RtAkTools
+
+python aitools.py `
+  --platform edgi `
+  --pull_repo_only True
+```
+
+执行 dry-run，确认 BSP 和 DeepCraft 模型产物可用：
+
+```powershell
+cd $RtAkTools
+
+python aitools.py `
+  --log .\edgi_dryrun.log `
+  --project $Bsp `
+  --platform edgi `
+  --model_name object_detect `
+  --deepcraft_dir $DeepCraftDir `
+  --dry_run
+```
+
+检查 dry-run 日志中的关键结果：
+
+```powershell
+Select-String -Path ".\edgi_dryrun.log" -Pattern "BSP check", "Model check", "ERROR", "Traceback"
+```
+
+auto 模式生成、导出并自动写入 BSP 配置：
+
+```powershell
+cd $RtAkTools
+
+python aitools.py `
+  --log .\edgi_export_auto.log `
+  --project $Bsp `
+  --platform edgi `
+  --model_name object_detect `
+  --deepcraft_dir $DeepCraftDir `
+  --ethosu `
+  --generate `
+  --export `
+  --config_mode auto
+```
+
+检查 auto 导出日志：
+
+```powershell
+Select-String -Path ".\edgi_export_auto.log" -Pattern "Configuration mode", "auto", "OK", "ERROR", "rollback", "rtconfig.h"
+```
+
+检查 BSP 根 `Kconfig` 中 Edgi source 只出现一次：
+
+```powershell
+(Select-String -Path "$Bsp\Kconfig" -Pattern "applications/rt_ai_edgi/Kconfig").Count
+```
+
+期望输出：
+
+```text
+1
+```
+
+检查 `.config`：
+
+```powershell
+Select-String -Path "$Bsp\.config" -Pattern `
+  "CONFIG_RT_AI_USE_EDGI=y", `
+  "CONFIG_RT_AI_USE_M55_ETHOSU=y", `
+  "CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y", `
+  "CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y"
+```
+
+检查 `rtconfig.h`：
+
+```powershell
+Select-String -Path "$Bsp\rtconfig.h" -Pattern `
+  "#define RT_AI_USE_EDGI", `
+  "#define RT_AI_USE_M55_ETHOSU", `
+  "#define RT_AI_EDGI_MODEL_OBJECT_DETECT", `
+  "#define RT_AI_EDGI_MINIMAL_DEMO"
+```
+
+检查导出的插件文件：
+
+```powershell
+Test-Path "$Bsp\applications\rt_ai_edgi\SConscript"
+Test-Path "$Bsp\applications\rt_ai_edgi\Kconfig"
+Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.c"
+Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_object_detect_model.h"
+Test-Path "$Bsp\applications\rt_ai_edgi\generated\object_detect\rt_ai_edgi_demo_config.h"
+Test-Path "$Bsp\rt_ai_lib\backend_plugin_edgi\backend_edgi.c"
+```
+
+以上命令应全部返回 `True`。
 
 ## 6. 生成和导出
 
