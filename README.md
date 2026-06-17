@@ -475,7 +475,7 @@ RT-AK Edgi config runner start
 model      : object_detect
 input      : 307200 bytes, uint8
 output     : 160 bytes, float32
-preprocess : yuyv_to_rgb888_320x320
+preprocess : yuyv_rgb888_320
 postprocess: object_detect_rps
 runner out[000]: ...
 RT-AK Edgi config runner end
@@ -511,6 +511,16 @@ RT-AK UVC AI app started (async)
 RT-AK UVC inference ... det=...
 RT-AK UVC #0 ...
 ```
+
+如果 UVC 段日志仍显示旧标签，例如：
+
+```text
+AI model initialized
+AI app started (async)
+AI inference ... det=...
+```
+
+这可以证明摄像头、LCD overlay、模型推理和 stop/start 生命周期已跑通；但它不是 UVC runner 分支的直接日志证据。验证最新 RT-AK UVC runner 分支时，应以 `RT-AK UVC runner ready` 和 `RT-AK UVC inference` 为准。
 
 LCD 应实时显示摄像头画面，并在 Rock / Paper / Scissors 目标上实时出框。
 
@@ -670,3 +680,45 @@ usbh_uvc_stop
 ```
 
 如果 `usbh_uvc_start 0 320 240` 能拉起摄像头、LCD 实时显示并出现 `RT-AK UVC inference` 日志，就说明 GitHub 最新插件版本已经打通“RT-AK API + UVC 实时出框”闭环。
+
+## 12. 板端验证记录
+
+2026-06-17 已完成一次板端日志审查，结论如下：
+
+```text
+help:
+    rt_ai_edgi_minimal_demo 存在
+    rt_ai_edgi_runner_demo 存在
+    usbh_uvc_start/usbh_uvc_stop 存在
+
+rt_ai_edgi_minimal_demo:
+    rt_ai_find success: object_detect
+    rt_ai_init success
+    rt_ai_input success
+    rt_ai_run success
+    rt_ai_output success
+    RT-AK Edgi standard API demo end
+
+rt_ai_edgi_runner_demo:
+    model      : object_detect
+    input      : 307200 bytes, uint8
+    output     : 160 bytes, float32
+    preprocess : yuyv_rgb888_320
+    postprocess: object_detect_rps
+    RT-AK Edgi config runner end
+
+usbh_uvc_start 0 320 240:
+    UVC start: 320x240 format=yuyv
+    LCD: 512x800 16bpp
+    AI inference 60-62 ms, npu 33.6 ms
+    detected example: Paper 30.42% bbox=[97,7,233,168]
+    LCD 实时出框
+
+stop/start:
+    usbh_uvc_stop 后 AI model deinitialized
+    usbh_uvc_start 可再次拉起 UVC、LCD 和推理
+```
+
+本次日志中的 `uvc abort1` / `uvc abort2` 出现在 stop 阶段，随后仍出现 `UVC stopped`，且下一次 `usbh_uvc_start` 能恢复，因此按非致命 stop 日志处理。
+
+注意：这次 UVC 段贴出的日志标签是 `AI inference`，不是 `RT-AK UVC inference`。因此它已证明 UVC/LCD/推理/stop-start 闭环可用；如果目标是确认“UVC 每帧也走最新 RT-AK runner 分支”，请烧录由最新 GitHub 插件重新导出的固件，并在 UVC 段确认出现 `RT-AK UVC runner ready` 和 `RT-AK UVC inference`。
