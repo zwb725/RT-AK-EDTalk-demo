@@ -154,11 +154,12 @@ def export_generated_files(opt):
     print("exported   : applications/rt_ai_edgi/rt_ai_edgi_minimal_demo.c")
     print("exported   : applications/rt_ai_edgi/rt_ai_edgi_runner.c/h")
     print("exported   : applications/rt_ai_edgi/rt_ai_edgi_runner_demo.c")
+    print("exported   : applications/uvc_ai_app.c (RT-AK UVC runner demo)")
     print("exported   : rt_ai_lib/backend_plugin_edgi/")
     print("-" * 70)
     print("注意：已幂等检查 BSP 根 Kconfig source：")
     print('source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"')
-    print("注意：当前阶段未修改 BSP 根目录 SConscript。")
+    print("注意：已幂等检查 BSP applications/SConscript 的 RT-AK include path。")
     print("=" * 70)
 
     try:

@@ -60,6 +60,20 @@ config RT_AI_EDGI_RUNNER_DEMO
         rt_ai_input, rt_ai_run and rt_ai_output through a reusable runner.
         UVC capture and LCD overlay remain in BSP application code.
 
+config RT_AI_EDGI_UVC_RUNNER_DEMO
+    bool "Use RT-AK runner in Edgi UVC AI demo"
+    depends on RT_AI_EDGI_RUNNER
+    default y
+    help
+        Export a UVC AI application example that keeps the original
+        usbh_uvc_start/usbh_uvc_stop and LCD overlay flow, but routes
+        each YUYV frame through RT-AK runner:
+
+          YUYV -> RGB888 into rt_ai_input()
+          rt_ai_run()
+          object_detect postprocess from rt_ai_output()
+          LCD overlay
+
 endif
 
 endmenu

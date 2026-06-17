@@ -7,6 +7,8 @@
 from building import *
 
 cwd = GetCurrentDir()
+project_root = Dir('#').abspath.replace('\\', '/')
+deepcraft_root = project_root + '/libraries/Common/deepcraft_ai'
 
 src = [
     'backend_edgi.c',
@@ -14,6 +16,7 @@ src = [
 
 CPPPATH = [
     cwd,
+    deepcraft_root + '/model',
 ]
 
 group = DefineGroup(

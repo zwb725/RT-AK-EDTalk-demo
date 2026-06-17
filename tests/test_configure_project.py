@@ -21,6 +21,7 @@ CONFIG_RT_AI_EDGI_MODEL_OBJECT_DETECT=y
 CONFIG_RT_AI_EDGI_MINIMAL_DEMO=y
 CONFIG_RT_AI_EDGI_RUNNER=y
 CONFIG_RT_AI_EDGI_RUNNER_DEMO=y
+CONFIG_RT_AI_EDGI_UVC_RUNNER_DEMO=y
 """
 
 
@@ -31,6 +32,7 @@ MANAGED_CONFIGS = [
     "CONFIG_RT_AI_EDGI_MINIMAL_DEMO",
     "CONFIG_RT_AI_EDGI_RUNNER",
     "CONFIG_RT_AI_EDGI_RUNNER_DEMO",
+    "CONFIG_RT_AI_EDGI_UVC_RUNNER_DEMO",
 ]
 
 
@@ -80,6 +82,11 @@ config RT_AI_EDGI_RUNNER
 
 config RT_AI_EDGI_RUNNER_DEMO
     bool "Enable Edgi RT-AK config runner demo"
+    depends on RT_AI_EDGI_RUNNER
+    default y
+
+config RT_AI_EDGI_UVC_RUNNER_DEMO
+    bool "Use RT-AK runner in Edgi UVC AI demo"
     depends on RT_AI_EDGI_RUNNER
     default y
 

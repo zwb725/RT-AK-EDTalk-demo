@@ -6,6 +6,27 @@ KCONFIG_SOURCE_LINE = 'source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"'
 DEFAULT_APP_EXPORT_REL = Path("applications") / "rt_ai_edgi"
 BACKEND_EXPORT_REL = Path("rt_ai_lib") / "backend_plugin_edgi"
 
+APPLICATIONS_SCONSCRIPT_MARKER = "# RT-AK Edgi runner include paths"
+APPLICATIONS_SCONSCRIPT_BLOCK = """\
+
+# RT-AK Edgi runner include paths
+rt_ai_edgi_dir = cwd + '/rt_ai_edgi'
+rt_ai_lib_dir = cwd + '/../rt_ai_lib'
+rt_ai_backend_dir = rt_ai_lib_dir + '/backend_plugin_edgi'
+rt_ai_generated_object_detect_dir = rt_ai_edgi_dir + '/generated/object_detect'
+for _rt_ai_edgi_path in [
+    rt_ai_edgi_dir,
+    rt_ai_lib_dir,
+    rt_ai_lib_dir + '/include',
+    rt_ai_backend_dir,
+    rt_ai_generated_object_detect_dir,
+    common_root + '/deepcraft_ai/model',
+    common_root + '/deepcraft_ai/third_party/ml-middleware/include',
+]:
+    if _rt_ai_edgi_path not in path:
+        path.append(_rt_ai_edgi_path)
+"""
+
 
 def _copy_dir(src: Path, dst: Path):
     if not src.exists():
@@ -53,6 +74,27 @@ def ensure_root_kconfig_source(project_path: Path):
         f.write(suffix + KCONFIG_SOURCE_LINE + newline)
 
 
+def ensure_applications_sconscript_paths(project_path: Path):
+    sconscript = project_path / "applications" / "SConscript"
+    if not sconscript.exists():
+        raise FileNotFoundError(f"BSP applications SConscript not found: {sconscript}")
+
+    text, newline = _read_text_keep_newline(sconscript)
+    if APPLICATIONS_SCONSCRIPT_MARKER in text:
+        return
+
+    anchor = "src  = Glob('*.c')"
+    block = APPLICATIONS_SCONSCRIPT_BLOCK.replace("\n", newline)
+    if anchor in text:
+        text = text.replace(anchor, block + newline + anchor, 1)
+    else:
+        suffix = "" if text.endswith(("\n", "\r")) else newline
+        text = text + suffix + block
+
+    with sconscript.open("w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
 def resolve_export_dir(project: str, export_dir: str = "") -> Path:
     if export_dir:
         return Path(export_dir).resolve()
@@ -77,6 +119,7 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     source_runner_h = repo_root / "examples" / "rt_ai_edgi_runner.h"
     source_runner = repo_root / "examples" / "rt_ai_edgi_runner.c"
     source_runner_demo = repo_root / "examples" / "rt_ai_edgi_runner_demo.c"
+    source_uvc_runner_app = repo_root / "examples" / "rt_ai_edgi_uvc_runner_app.c"
     source_active_model = repo_root / "templates" / "rt_ai_edgi_active_model.h"
     source_kconfig = repo_root / "Kconfig"
 
@@ -90,8 +133,10 @@ def export_to_project(project: str, output_dir: str, export_dir: str = "") -> Pa
     _copy_file(source_runner_h, app_target_dir / "rt_ai_edgi_runner.h")
     _copy_file(source_runner, app_target_dir / "rt_ai_edgi_runner.c")
     _copy_file(source_runner_demo, app_target_dir / "rt_ai_edgi_runner_demo.c")
+    _copy_file(source_uvc_runner_app, project_path / "applications" / "uvc_ai_app.c")
     _copy_file(source_active_model, app_target_dir / "rt_ai_edgi_active_model.h")
     _copy_file(source_kconfig, app_target_dir / "Kconfig")
     ensure_root_kconfig_source(project_path)
+    ensure_applications_sconscript_paths(project_path)
 
     return app_target_dir
