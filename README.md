@@ -520,7 +520,7 @@ AI app started (async)
 AI inference ... det=...
 ```
 
-这可以证明摄像头、LCD overlay、模型推理和 stop/start 生命周期已跑通；但它不是 UVC runner 分支的直接日志证据。验证最新 RT-AK UVC runner 分支时，应以 `RT-AK UVC runner ready` 和 `RT-AK UVC inference` 为准。
+这通常说明板端烧入的不是最新 UVC runner 固件，或该固件仍走原 BSP UVC AI 分支。验证当前版本时，应以 `RT-AK UVC runner ready` 和 `RT-AK UVC inference` 为准。
 
 LCD 应实时显示摄像头画面，并在 Rock / Paper / Scissors 目标上实时出框。
 
@@ -681,16 +681,72 @@ usbh_uvc_stop
 
 如果 `usbh_uvc_start 0 320 240` 能拉起摄像头、LCD 实时显示并出现 `RT-AK UVC inference` 日志，就说明 GitHub 最新插件版本已经打通“RT-AK API + UVC 实时出框”闭环。
 
-## 12. 板端验证记录
+## 12. 版本结论与实测记录
 
-2026-06-17 已完成一次板端日志审查，结论如下：
+当前版本结论：
 
 ```text
-help:
-    rt_ai_edgi_minimal_demo 存在
-    rt_ai_edgi_runner_demo 存在
-    usbh_uvc_start/usbh_uvc_stop 存在
+P0 当前版本固化:
+    README 已更新为教程型技术文档
+    GitHub 插件下载链路已验证
+    干净 RT-AK + 干净 BSP + 最新插件可导出、配置、编译并生成 hex
 
+P1 标准 RT-AK API 对齐:
+    rt_ai_find("object_detect") 跑通
+    rt_ai_init() 跑通
+    rt_ai_input() 跑通
+    rt_ai_run() 跑通
+    rt_ai_output() 跑通
+
+P2 UVC demo 与 RT-AK runner 接通:
+    usbh_uvc_start 0 320 240 保留为摄像头和 LCD 入口
+    每帧 YUYV 输入转换后写入 RT-AK input buffer
+    UVC 推理阶段走 RT-AK runner
+    后处理结果进入 LCD overlay
+
+P3 Kconfig / menuconfig 正规化:
+    RT_AI_USE_EDGI 已进入 Kconfig
+    RT_AI_USE_M55_ETHOSU 已进入 Kconfig
+    RT_AI_EDGI_RUNNER_DEMO 已进入 Kconfig
+    RT_AI_EDGI_UVC_RUNNER_DEMO 已进入 Kconfig
+    auto 模式可更新 .config 并重新生成 rtconfig.h
+```
+
+2026-06-17 已完成一次 GitHub 最新插件闭环验证：
+
+```text
+验证目录:
+    C:\demo-vetify0.4
+
+插件来源:
+    https://github.com/zwb725/RT-AK-EDTalk-demo.git
+
+插件提交:
+    9ca4a25 或更新版本
+
+验证流程:
+    干净 RT-AK clone
+    干净 sdk-bsp-psoc_e84-edgi-talk clone
+    RT-AK pull_repo_only 从 GitHub 下载 plugin_edgi
+    aitools.py --dry_run
+    aitools.py --generate --export --config_mode auto
+    scons -c
+    scons -j6
+    OpenOCD 烧录 Debug/rtthread.hex
+```
+
+编译产物：
+
+```text
+C:\demo-vetify0.4\sdk-bsp-psoc_e84-edgi-talk\projects\Edgi_Talk_M55_DEEPCRAFT_Deploy_Vision\Debug\rtthread.hex
+
+rtthread.hex SHA256:
+    4357C67B34E3AB35C79F37C8793602B3055ED2AB96FDDA914E11750B8C487467
+```
+
+板端实测日志结论：
+
+```text
 rt_ai_edgi_minimal_demo:
     rt_ai_find success: object_detect
     rt_ai_init success
@@ -705,20 +761,35 @@ rt_ai_edgi_runner_demo:
     output     : 160 bytes, float32
     preprocess : yuyv_rgb888_320
     postprocess: object_detect_rps
+    [RT-AK][Edgi][runner] init model=object_detect input=307200 output=160
     RT-AK Edgi config runner end
 
 usbh_uvc_start 0 320 240:
     UVC start: 320x240 format=yuyv
     LCD: 512x800 16bpp
-    AI inference 60-62 ms, npu 33.6 ms
-    detected example: Paper 30.42% bbox=[97,7,233,168]
-    LCD 实时出框
+    [RT-AK][Edgi][runner] init model=object_detect input=307200 output=160
+    RT-AK UVC runner ready
+    RT-AK UVC AI app started (async)
+    RT-AK UVC inference 74-75 ms, prep 10-11 ms, npu 33.6 ms
+    LCD 实时显示链路正常
 
-stop/start:
-    usbh_uvc_stop 后 AI model deinitialized
-    usbh_uvc_start 可再次拉起 UVC、LCD 和推理
+UVC 流恢复:
+    出现过 uvc abort1
+    随后 UVC stream restart
+    后续继续出现 RT-AK UVC inference
+
+usbh_uvc_stop:
+    RT-AK UVC AI app stopped
+    UVC stopped
 ```
 
-本次日志中的 `uvc abort1` / `uvc abort2` 出现在 stop 阶段，随后仍出现 `UVC stopped`，且下一次 `usbh_uvc_start` 能恢复，因此按非致命 stop 日志处理。
+最终验收结论：
 
-注意：这次 UVC 段贴出的日志标签是 `AI inference`，不是 `RT-AK UVC inference`。因此它已证明 UVC/LCD/推理/stop-start 闭环可用；如果目标是确认“UVC 每帧也走最新 RT-AK runner 分支”，请烧录由最新 GitHub 插件重新导出的固件，并在 UVC 段确认出现 `RT-AK UVC runner ready` 和 `RT-AK UVC inference`。
+```text
+标准 RT-AK API 闭环已跑通
+配置化 runner 闭环已跑通
+UVC + LCD 实时推理闭环已接入 RT-AK runner
+GitHub 最新插件一键下载、导出、配置、编译、烧录验证闭环已跑通
+```
+
+`uvc abort1` 如果出现在流切换或停止阶段，且后续出现 `UVC stream restart`、`RT-AK UVC inference` 或 `UVC stopped`，按非致命 UVC 生命周期日志处理。
