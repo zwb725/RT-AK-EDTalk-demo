@@ -72,4 +72,12 @@ def platform_parameters(parser):
         help="导出目录，默认导出到 BSP applications/rt_ai_edgi/",
     )
 
+    parser.add_argument(
+        "--config_mode",
+        type=str,
+        default="manual",
+        choices=["manual", "auto"],
+        help="BSP 配置模式：manual 只接入 Kconfig 并提示 menuconfig；auto 自动更新 .config 并通过 Kconfig 系统生成 rtconfig.h",
+    )
+
     return parser

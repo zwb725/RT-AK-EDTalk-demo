@@ -17,6 +17,7 @@ from .generate_rt_ai_model_h import generate_rt_ai_model_h
 from .gen_rt_ai_model_c import generate_rt_ai_model_c
 from .export_to_project import export_to_project
 from .generate_demo_config import generate_demo_config
+from .configure_project import configure_project
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -130,6 +131,7 @@ def generate_model_wrapper(opt):
 
 def export_generated_files(opt):
     """导出插件产物到 BSP applications/rt_ai_edgi 和 rt_ai_lib/backend_plugin_edgi。"""
+    plugin_root = Path(__file__).resolve().parent
     try:
         target_dir = export_to_project(
             project=opt.project,
@@ -154,8 +156,19 @@ def export_generated_files(opt):
     print("-" * 70)
     print("注意：已幂等检查 BSP 根 Kconfig source：")
     print('source "$BSP_DIR/applications/rt_ai_edgi/Kconfig"')
-    print("注意：当前阶段未修改 BSP 根目录 SConscript / rtconfig.h。")
+    print("注意：当前阶段未修改 BSP 根目录 SConscript。")
     print("=" * 70)
+
+    try:
+        configure_project(
+            project=opt.project,
+            config_mode=getattr(opt, "config_mode", "manual"),
+            config_fragment=str(plugin_root / "configs" / "edgi_default.config"),
+            logger=print,
+        )
+    except Exception as exc:
+        print(f"配置失败：{exc}")
+        return 1
 
     return 0
 

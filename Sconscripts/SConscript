@@ -18,24 +18,25 @@ CPPPATH = [
     deepcraft_model_dir,
 ]
 
-if GetDepend(['RT_AI_EDGI_MODEL_OBJECT_DETECT']):
-    generated_dir = cwd + '/generated/object_detect'
+if GetDepend(['RT_AI_USE_EDGI']):
+    if GetDepend(['RT_AI_EDGI_MODEL_OBJECT_DETECT']):
+        generated_dir = cwd + '/generated/object_detect'
 
-    src += [
-        generated_dir + '/rt_ai_object_detect_model.c',
-    ]
+        src += [
+            generated_dir + '/rt_ai_object_detect_model.c',
+        ]
 
-    CPPPATH += [
-        generated_dir,
-    ]
-# Add future Edgi model branches here with elif GetDepend([...]).
-else:
-    raise RuntimeError('RT-AK Edgi: no model selected')
+        CPPPATH += [
+            generated_dir,
+        ]
+    # Add future Edgi model branches here with elif GetDepend([...]).
+    else:
+        raise RuntimeError('RT-AK Edgi: no model selected')
 
-if GetDepend(['RT_AI_EDGI_MINIMAL_DEMO']):
-    src += [
-        cwd + '/rt_ai_edgi_minimal_demo.c',
-    ]
+    if GetDepend(['RT_AI_EDGI_MINIMAL_DEMO']):
+        src += [
+            cwd + '/rt_ai_edgi_minimal_demo.c',
+        ]
 
 group = DefineGroup(
     'RT-AK-Edgi',
